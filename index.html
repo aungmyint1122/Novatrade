@@ -388,21 +388,24 @@ async function placeOrder(side, qty) {
     }
 
     async function renderMarket() {
-      setActive('market');
-      const prices = await getPrices();
-      app.innerHTML = `
-        <section class="card" style="margin-top:70px">
-          <h2 style="margin:0 0 8px">Market Overview</h2>
-          <div class="small">Admin-set prices</div>
-          <div style="margin-top:10px">
-            <div class="row" style="display:flex;gap:12px;align-items:center">
-              <div style="width:120px">SAM / USDT</div>
-              <div><b>${fmt(prices["SAM/USDT"] || 0, 6)}</b></div>
-            </div>
-          </div>
-        </section>
-      `;
-    }
+  setActive('market');
+  const prices = await getPrices();
+  const samPrice = Number(prices["SAM/USDT"]) || 0; // convert safely
+
+  app.innerHTML = `
+    <section class="card" style="margin-top:70px">
+      <h2 style="margin:0 0 8px">Market Overview</h2>
+      <div class="small">Admin-set prices</div>
+      <div style="margin-top:10px">
+        <div class="row" style="display:flex;gap:12px;align-items:center">
+          <div style="width:120px">SAM / USDT</div>
+          <div><b>${fmt(samPrice, 6)}</b></div>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
 
     async function renderAssets() {
   setActive('assets');
