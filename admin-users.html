@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Admin — Users (Protected)</title>
+<style>
+:root{ --bg:#0b0f1a; --card:#12182a; --text:#e8eefc; --line:#29304b; --ok:#18c964; --err:#ff4d4f;}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font:14px/1.6 system-ui,-apple-system,Segoe UI,Roboto}
+.wrap{max-width:1100px;margin:24px auto;padding:0 16px}
+.card{background:linear-gradient(160deg,rgba(255,255,255,.03),rgba(255,255,255,.01));border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+.input{background:#0f1426;border:1px solid var(--line);color:#e8eefc;padding:10px 12px;border-radius:10px;width:100%}
+.btn{cursor:pointer;border-radius:10px;border:1px solid var(--line);padding:10px 14px;background:#0f1426;color:#e8eefc;font-weight:600}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.small{color:#9aa4c7}
+.table{width:100%;border-collapse:collapse}.table th,.table td{border-bottom:1px solid var(--line);padding:8px;text-align:left}
+.banner{padding:8px 16px;border-bottom:1px solid var(--line);background:#1a223a;color:#9aa4c7}
+.badge{padding:2px 8px;border:1px solid var(--line);border-radius:999px;background:#0f1426;color:#9aa4c7;font-size:12px}
+.right{text-align:right}
+.w80{width:80px}
+.w120{width:120px}
+</style></head>
+<body>
+<div class="banner">Admin tool — list users, lock/unlock, and approve deposits & withdrawals.</div>
+
+<div id="gate" class="wrap">
+  <div class="card">
+    <h2>Admin Login</h2>
+    <div class="row"><input id="pw" type="password" class="input" placeholder="Password"/></div>
+    <div class="row"><button class="btn" onclick="tryLogin()">Enter</button><button class="btn" onclick="resetPass()">Reset</button><span id="gate-msg" class="small"></span></div>
+    <div class="small">First time? Click Reset to set a new password.</div>
+  </div>
+  <div class="card" id="setup" style="display:none">
+    <h2>Set Admin Password</h2>
+    <div class="row"><input id="spw1" type="password" class="input" placeholder="New password"/></div>
+    <div class="row"><input id="spw2" type="password" class="input" placeholder="Confirm password"/></div>
+    <div class="row"><button class="btn" onclick="trySetup()">Save Password</button><span id="setup-msg" class="small"></span></div>
+  </div>
+</div>
+
+<div id="content" class="wrap" style="display:none">
+  <div class="card" id="usersCard">
+    <h2>Users</h2>
+    <table class="table"><thead><tr><th>Email</th><th>Status</th><th>Role</th><th>Balances</th><th>Action</th></tr></thead><tbody id="uBody"></tbody></table>
+  </div>
+
+  <div class="card" id="depsCard">
+    <h2>Pending Deposits</h2>
+    <table class="table"><thead><tr><th>Time</th><th>Email</th><th>Asset</th><th class="right">Amount</th><th>Tx/Note</th><th>Status</th><th class="right">Action</th></tr></thead><tbody id="depBody"></tbody></table>
+  </div>
+
+  <div class="card" id="wdsCard">
+    <h2>Pending Withdrawals</h2>
+    <table class="table"><thead><tr><th>Time</th><th>Email</th><th>Asset</th><th class="right">Amount</th><th>Address / Network</th><th>Status</th><th class="right">Action</th></tr></thead><tbody id="wdBody"></tbody></table>
+  </div>
+</div>
+
+<script>
+/* ---------- gate ---------- */
+function sha256(s){ try{ if (window.crypto && window.crypto.subtle){ var e=new TextEncoder().encode(s); return window.crypto.subtle.digest('SHA-256',e).then(function(b){ return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join(''); }); } }catch(e){} return Promise.resolve(s); }
+function tryLogin(){ var pass=document.getElementById('pw').value; var saved=localStorage.getItem('nl.admin.passhash'); if(!saved){ document.getElementById('setup').style.display='block'; return; } sha256(pass).then(function(hash){ if(hash===saved){ sessionStorage.setItem('nl.admin.unlocked','1'); unlock(); } else{ document.getElementById('gate-msg').textContent='Wrong password'; } }); }
+function trySetup(){ var p1=document.getElementById('spw1').value, p2=document.getElementById('spw2').value; var msg=document.getElementById('setup-msg'); msg.textContent=''; if(!p1 || p1!==p2){ msg.textContent='Check passwords'; return; } sha256(p1).then(function(hash){ localStorage.setItem('nl.admin.passhash',hash); sessionStorage.setItem('nl.admin.unlocked','1'); unlock(); }); }
+function resetPass(){ localStorage.removeItem('nl.admin.passhash'); sessionStorage.removeItem('nl.admin.unlocked'); document.getElementById('setup').style.display='block'; }
+function unlock(){ document.getElementById('gate').style.display='none'; document.getElementById('content').style.display='block'; paintUsers(); paintDeposits(); paintWithdrawals(); }
+(function(){ if(localStorage.getItem('nl.admin.passhash')){ if(sessionStorage.getItem('nl.admin.unlocked')==='1'){ unlock(); } } })();
+
+/* ---------- storage helpers (keep old keys) ---------- */
+function users(){ try{ var a=JSON.parse(localStorage.getItem('nl.users')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function saveUsers(a){ localStorage.setItem('nl.users', JSON.stringify(a)); }
+
+function deposits(){ try{ var a=JSON.parse(localStorage.getItem('nl.deposits')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function saveDeposits(a){ localStorage.setItem('nl.deposits', JSON.stringify(a)); }
+
+function withdrawals(){ try{ var a=JSON.parse(localStorage.getItem('nl.withdrawals')||'[]'); return Array.isArray(a)?a:[]; }catch(e){ return []; } }
+function saveWithdrawals(a){ localStorage.setItem('nl.withdrawals', JSON.stringify(a)); }
+
+function prettyTime(ts){ return new Date(ts).toLocaleString(); }
+
+/* ---------- users ---------- */
+function paintUsers(){
+  var tb=document.getElementById('uBody'); tb.innerHTML='';
+  users().forEach(function(u){
+    u.status = u.status || 'active';
+    u.role   = u.role   || 'user';
+    u.balances=u.balances||{BTC:0,ETH:0,USDT:0,SAM:0};
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+u.email+'</td><td>'+u.status+'</td><td>'+u.role+'</td>'
+      +'<td><span class="badge">BTC '+(u.balances.BTC||0)+'</span> '
+      +'<span class="badge">ETH '+(u.balances.ETH||0)+'</span> '
+      +'<span class="badge">USDT '+(u.balances.USDT||0)+'</span> '
+      +'<span class="badge">SAM '+(u.balances.SAM||0)+'</span></td>'
+      +'<td class="right">'+(u.status==='active'
+          ?'<button class="btn" data-act="lock" data-email="'+u.email+'">Lock</button>'
+          :'<button class="btn" data-act="unlock" data-email="'+u.email+'">Unlock</button>')
+      +' <button class="btn" data-act="credit" data-email="'+u.email+'">Credit</button></td>';
+    tb.appendChild(tr);
+  });
+}
+
+/* lock/unlock + manual credit */
+document.addEventListener('click', function(e){
+  var b=e.target.closest('button[data-act]'); if(!b) return;
+  var act=b.getAttribute('data-act'); var email=b.getAttribute('data-email');
+  if(act==='lock' || act==='unlock'){
+    var arr=users(); var u=arr.find(function(x){return x.email===email}); if(!u) return;
+    u.status=(act==='lock')?'locked':'active'; saveUsers(arr); paintUsers(); return;
+  }
+  if(act==='credit'){
+    var amt=prompt('Credit format: "ASSET amount" (e.g., USDT 100 or BTC 0.01)'); if(!amt) return;
+    var parts=amt.trim().split(/\s+/); if(parts.length!==2) return alert('Format: ASSET amount');
+    var asset=parts[0].toUpperCase(); var v=parseFloat(parts[1]); if(!v||isNaN(v)) return alert('Invalid');
+    var arr=users(); var u=arr.find(function(x){return x.email===email}); if(!u) return;
+    u.balances=u.balances||{BTC:0,ETH:0,USDT:0,SAM:0}; u.balances[asset]=(u.balances[asset]||0)+v;
+    u.ledger=u.ledger||[]; u.ledger.unshift({ts:Date.now(),type:'admin_credit',asset:asset,amount:v});
+    saveUsers(arr); paintUsers();
+  }
+});
+
+/* ---------- deposits ---------- */
+function paintDeposits(){
+  var tb=document.getElementById('depBody'); tb.innerHTML='';
+  deposits().forEach(function(d){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+prettyTime(d.ts)+'</td><td>'+d.email+'</td><td>'+d.asset+'</td>'
+      +'<td class="right">'+d.amount+'</td>'
+      +'<td>'+(d.tx||d.note||'')+'</td><td>'+d.status+'</td>'
+      +'<td class="right">'+(d.status==='pending'
+        ?'<button class="btn" data-approve="'+d.ts+'">Approve</button> <button class="btn" data-reject="'+d.ts+'">Reject</button>'
+        :'')+'</td>';
+    tb.appendChild(tr);
+  });
+}
+
+document.addEventListener('click', function(e){
+  var a=e.target.getAttribute('data-approve'); var r=e.target.getAttribute('data-reject');
+  if(a){ var ts=+a; var list=deposits(); var i=list.findIndex(function(x){return x.ts===ts}); if(i<0) return;
+    var d=list[i]; var arr=users(); var u=arr.find(function(x){return x.email===d.email}); if(u){
+      u.balances=u.balances||{BTC:0,ETH:0,USDT:0,SAM:0}; u.balances[d.asset]=(u.balances[d.asset]||0)+(+d.amount); saveUsers(arr);
+    }
+    list[i].status='approved'; saveDeposits(list); paintDeposits(); paintUsers(); }
+  if(r){ var ts2=+r; var list2=deposits(); var j=list2.findIndex(function(x){return x.ts===ts2}); if(j<0) return; list2[j].status='rejected'; saveDeposits(list2); paintDeposits(); }
+});
+
+/* ---------- withdrawals (NEW) ---------- */
+function paintWithdrawals(){
+  var tb=document.getElementById('wdBody'); tb.innerHTML='';
+  withdrawals().forEach(function(w){
+    var net = w.network ? (' <span class="badge">'+w.network+'</span>') : '';
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+prettyTime(w.ts)+'</td><td>'+w.email+'</td><td>'+w.asset+'</td>'
+      +'<td class="right">'+w.amount+'</td>'
+      +'<td>'+(w.address||'')+net+'</td><td>'+w.status+'</td>'
+      +'<td class="right">'+(w.status==='pending'
+        ?'<button class="btn" data-wd-approve="'+w.ts+'">Approve</button> <button class="btn" data-wd-reject="'+w.ts+'">Reject</button>'
+        :'')+'</td>';
+    tb.appendChild(tr);
+  });
+}
+
+/* approve/reject withdrawals */
+document.addEventListener('click', function(e){
+  var ap=e.target.getAttribute('data-wd-approve'); var rj=e.target.getAttribute('data-wd-reject');
+  if(ap){
+    var ts=+ap; var wds=withdrawals(); var i=wds.findIndex(function(x){return x.ts===ts}); if(i<0) return;
+    var w=wds[i]; var arr=users(); var u=arr.find(function(x){return x.email===w.email}); if(!u){ alert('User not found'); return; }
+    u.balances=u.balances||{BTC:0,ETH:0,USDT:0,SAM:0};
+    var have=+(u.balances[w.asset]||0), need=+(w.amount||0);
+    if(have<need){ alert('Insufficient balance: have '+have+' '+w.asset+', need '+need); return; }
+    u.balances[w.asset]=have-need; saveUsers(arr);
+    wds[i].status='approved'; saveWithdrawals(wds);
+    paintWithdrawals(); paintUsers();
+  }
+  if(rj){
+    var ts2=+rj; var wds2=withdrawals(); var j=wds2.findIndex(function(x){return x.ts===ts2}); if(j<0) return;
+    wds2[j].status='rejected'; saveWithdrawals(wds2); paintWithdrawals();
+  }
+});
+</script>
+</body></html>

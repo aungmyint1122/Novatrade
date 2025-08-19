@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Nova</title>
+
+  <!-- Theme -->
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%2320d0ff'/%3E%3C/svg%3E" />
+
+  <!-- Hide Crisp’s default bubble; we use header button -->
+  <style>#crisp-chatbox>div>a{display:none!important}</style>
+
+  <!-- ✨ Small UI helpers -->
+  <style>
+    .btn{padding:6px 10px;border:1px solid #29304b;background:#1a223a;color:#e8eefc;border-radius:10px;cursor:pointer}
+    .btn:hover{filter:brightness(1.1)}
+    .auth-input{padding:6px 8px;border-radius:8px;border:1px solid #2a334d;background:#12182a;color:#e8eefc}
+    .pill[disabled], .btn[disabled]{opacity:.6;cursor:wait}
+    :root.signup-mode #app { display:none !important; } /* hide SPA view when drop-in sign-up visible */
+    .hide{display:none!important}
+  </style>
+
+  <!-- Crisp Chat -->
+  <script>
+    window.$crisp = window.$crisp || [];
+    window.CRISP_WEBSITE_ID = "7dc0599e-e38b-496f-8675-ffa37b280c94";
+    window.$crisp.push(["do","chat:hide"]);
+    window.__crispChatOpen = false;
+    window.CRISP_READY_TRIGGER = function () {
+      window.$crisp.push(["do","chat:hide"]);
+      window.$crisp.push(["on","chat:opened", () => window.__crispChatOpen = true ]);
+      window.$crisp.push(["on","chat:closed", () => window.__crispChatOpen = false ]);
+    };
+    (function(){var d=document,s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.head.appendChild(s);})();
+  </script>
+
+  <!-- App entry -->
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <!-- Top navigation (glass) -->
+  <header class="nav">
+    <div class="brand">Nova</div>
+    <div class="nav-right">
+      <!-- Language -->
+      <div class="lang">
+        <button id="btn-lang" type="button" class="pill small" aria-haspopup="listbox">🇬🇧 EN ▾</button>
+        <ul id="lang-menu" class="dropdown" role="listbox" aria-label="Language">
+          <li data-lang="en"    role="option">🇬🇧 English</li>
+          <li data-lang="ja"    role="option">🇯🇵 日本語</li>
+          <li data-lang="ko"    role="option">🇰🇷 한국어</li>
+          <li data-lang="vi"    role="option">🇻🇳 Tiếng Việt</li>
+          <li data-lang="th"    role="option">🇹🇭 ไทย</li>
+          <li data-lang="ar"    role="option">🇦🇪 عربي</li>
+          <li data-lang="de"    role="option">🇩🇪 Deutsch</li>
+          <li data-lang="it"    role="option">🇮🇹 Italiano</li>
+          <li data-lang="fr"    role="option">🇫🇷 français</li>
+          <li data-lang="zh-TW" role="option">🇹🇼 繁體中文</li>
+          <li data-lang="ru"    role="option">🇷🇺 Русский</li>
+          <li data-lang="tr"    role="option">🇹🇷 Türkçe</li>
+          <li data-lang="pt"    role="option">🇵🇹 Português</li>
+          <li data-lang="es"    role="option">🇪🇸 Español</li>
+        </ul>
+      </div>
+
+      <!-- Chat toggle (handled in main.js) -->
+      <button id="btn-chat" type="button" class="pill small" aria-label="Live chat" data-i18n="chat">Chat</button>
+
+      <!-- Session indicator -->
+      <div class="badge" id="who" data-i18n="guest">Guest</div>
+
+      <!-- === Auth Bar (with password) === -->
+      <form id="authbar" style="display:flex;gap:.5rem;align-items:center;margin-left:.75rem">
+        <span id="auth-status" class="small" style="opacity:.85">Guest</span>
+        <input id="auth-email" class="auth-input" type="email" placeholder="you@example.com" autocomplete="email" aria-label="Email" />
+        <input id="auth-pass"  class="auth-input" type="password" placeholder="password" autocomplete="current-password" aria-label="Password" />
+        <button id="btn-signin"  type="submit" class="btn">Sign In</button>
+        <button id="btn-me"      type="button" class="btn hide">Me</button>
+        <button id="btn-signout" type="button" class="btn hide">Sign Out</button>
+      </form>
+      <!-- === /Auth Bar === -->
+    </div>
+  </header>
+
+  <!-- Runtime banner (errors / notices) -->
+  <div class="banner" id="banner" role="status" aria-live="polite"></div>
+
+  <!-- Main view outlet (router mounts views here) -->
+  <main id="app" class="container"></main>
+
+  <!-- Bottom tabbar (router selects tabs by data-tab) -->
+  <nav class="tabbar" id="tabs">
+    <button class="tab active" data-tab="home" aria-label="Home">
+      <svg viewBox="0 0 24 24"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
+      <span data-i18n="nav.home">Home</span>
+    </button>
+    <button class="tab" data-tab="market" aria-label="Market">
+      <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M8 19V9"/><path d="M12 19V4"/><path d="M16 19v-7"/><path d="M20 19v-3"/></svg>
+      <span data-i18n="nav.market">Market</span>
+    </button>
+    <button class="tab" data-tab="trade" aria-label="Trade">
+      <svg viewBox="0 0 24 24"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/></svg>
+      <span data-i18n="nav.trade">Trade</span>
+    </button>
+    <button class="tab" data-tab="assets" aria-label="Assets">
+      <svg viewBox="0 0 24 24"><path d="M3 7h18v10H3z"/><path d="M16 12h4"/></svg>
+      <span data-i18n="nav.assets">Assets</span>
+    </button>
+    <button class="tab" data-tab="auth" aria-label="Auth">
+      <svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Z"/><path d="M3 21a9 9 0 0 1 18 0"/></svg>
+      <span data-i18n="nav.auth">Auth</span>
+    </button>
+  </nav>
+
+  <!-- === Sign-up (drop-in) =============================================== -->
+  <section id="signup" class="card"
+           style="display:none;max-width:520px;margin:88px auto 28px;padding:18px 18px 16px;
+                  border-radius:16px;background:#101522;box-shadow:0 10px 35px rgba(0,0,0,.35)">
+    <h2 style="margin:0 0 12px">Create account</h2>
+
+    <form id="signupForm" style="display:grid;gap:12px">
+      <div>
+        <label class="small" for="su-username" style="display:block;margin:0 0 6px;color:#9fb4ff">Username</label>
+        <input id="su-username" name="username" placeholder="e.g. navatrader" required
+               autocomplete="username"
+               style="width:100%;padding:12px;border-radius:12px;border:1px solid #2c3650;
+                      background:#0e1320;color:#e7eeff;outline:none" />
+      </div>
+
+      <div>
+        <label class="small" for="su-email" style="display:block;margin:0 0 6px;color:#9fb4ff">Email</label>
+        <input id="su-email" name="email" type="email" placeholder="you@example.com" required
+               autocomplete="email"
+               style="width:100%;padding:12px;border-radius:12px;border:1px solid #2c3650;
+                      background:#0e1320;color:#e7eeff;outline:none" />
+      </div>
+
+      <div>
+        <label class="small" for="su-pass" style="display:block;margin:0 0 6px;color:#9fb4ff">Password</label>
+        <input id="su-pass" name="password" type="password" placeholder="At least 8 characters" required minlength="8"
+               autocomplete="new-password"
+               style="width:100%;padding:12px;border-radius:12px;border:1px solid #2c3650;
+                      background:#0e1320;color:#e7eeff;outline:none" />
+      </div>
+
+      <button type="submit" class="pill"
+              style="padding:12px 16px;border-radius:999px;background:#20d0ff;color:#001428;border:none">
+        Create account
+      </button>
+
+      <div class="small" id="signupMsg" style="min-height:20px;color:#9fb4ff"></div>
+    </form>
+
+    <div class="small" style="opacity:.8;margin-top:6px">
+      Already have an account? You can close this card.
+    </div>
+  </section>
+
+  <script>
+    // --- helpers
+    const $ = (s)=>document.querySelector(s);
+    const banner = $("#banner");
+    const toast  = (msg)=>{ banner.textContent = msg || ""; if (msg) setTimeout(()=>banner.textContent="", 3500); };
+
+    function getQueryParam(key){ return new URL(location.href).searchParams.get(key); }
+
+    // === Drop-in Sign-up
+    (function attachSignupUI(){
+      const signup = $('#signup');
+      const form   = $('#signupForm');
+      const msg    = $('#signupMsg');
+      if(!signup || !form) return;
+
+      const shouldOpen = getQueryParam('signup') === '1' || location.hash === '#signup';
+      if (shouldOpen) signup.style.display = 'block';
+
+      window.openSignup = function(){ signup.style.display = 'block'; scrollTo({top:0,behavior:'smooth'}); };
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = form.querySelector('button[type=submit]');
+        const username = ($('#su-username').value || '').trim();
+        const email    = ($('#su-email').value || '').trim();
+        const password = ($('#su-pass').value || '');
+
+        if (!username || !email || !password){ msg.textContent = 'Please enter username, email and password.'; return; }
+
+        btn.disabled = true; msg.textContent = 'Creating your account…';
+
+        try{
+          const resp = await fetch('/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password })
+          });
+          const data = await resp.json().catch(()=>({}));
+
+          if (resp.ok && data.ok){
+            msg.textContent = `Welcome, ${data.user.username}!`;
+            // hand-off: prefill header email & focus password field
+            const he = $('#auth-email'), hp = $('#auth-pass');
+            if (he) he.value = email;
+            if (hp) { hp.focus(); }
+            form.reset();
+          }else{
+            msg.textContent = data.error || 'Could not create account.';
+          }
+        }catch(err){
+          console.error(err);
+          msg.textContent = 'Network error. Please try again.';
+        }finally{
+          btn.disabled = false;
+        }
+      });
+    })();
+
+    // === Auth wiring (save token, call profile, sign out)
+    const Auth = {
+      save(t){ localStorage.setItem("jwt", t); },
+      token(){ return localStorage.getItem("jwt") || ""; },
+      header(){ return Auth.token() ? { authorization: `Bearer ${Auth.token()}` } : {}; },
+      clear(){ localStorage.removeItem("jwt"); }
+    };
+    async function api(url, opts={}) {
+      const res = await fetch(url, {
+        ...opts,
+        headers: { "content-type": "application/json", ...(opts.headers||{}), ...Auth.header() }
+      });
+      return res.json();
+    }
+
+    const statusEl = $("#auth-status");
+    const emailEl  = $("#auth-email");
+    const passEl   = $("#auth-pass");
+    const btnIn    = $("#btn-signin");
+    const btnMe    = $("#btn-me");
+    const btnOut   = $("#btn-signout");
+    const authbar  = $("#authbar");
+
+    function uiSignedIn(user){
+      statusEl.textContent = user ? `Signed in as ${user.email}` : "Signed in";
+      emailEl.classList.add("hide");
+      passEl.classList.add("hide");
+      btnIn.classList.add("hide");
+      btnMe.classList.remove("hide");
+      btnOut.classList.remove("hide");
+      const signup = $('#signup'); if (signup) signup.style.display = 'none';
+      document.documentElement.classList.remove('signup-mode');
+    }
+    function uiSignedOut(){
+      statusEl.textContent = "Guest";
+      emailEl.classList.remove("hide");
+      passEl.classList.remove("hide");
+      btnIn.classList.remove("hide");
+      btnMe.classList.add("hide");
+      btnOut.classList.add("hide");
+    }
+
+    // submit on Enter from the auth bar
+    authbar?.addEventListener('submit', async (e)=>{
+      e.preventDefault();
+      await signIn();
+    });
+
+    async function signIn(){
+      const email = (emailEl.value || "").trim();
+      const password = (passEl.value || "");
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast("Enter a valid email."); return; }
+      if(!password){ toast("Enter your password."); return; }
+
+      btnIn.disabled = true;
+      const r = await api("/api/login", { method:"POST", body: JSON.stringify({ email, password }) });
+      btnIn.disabled = false;
+
+      if(!r.ok){ toast("Login failed: " + (r.error||"")); return; }
+      Auth.save(r.token);
+      localStorage.setItem('me', JSON.stringify(r.user));
+      uiSignedIn(r.user);
+      toast("Signed in");
+    }
+    async function me(){
+      const r = await api("/api/profile");
+      if(!r.ok){ toast("Please sign in"); return; }
+      alert(`ID: ${r.user.id}\nUser: ${r.user.username}\nEmail: ${r.user.email}`);
+    }
+    function signOut(){ Auth.clear(); localStorage.removeItem('me'); uiSignedOut(); toast("Signed out"); }
+
+    btnIn?.addEventListener("click", (e)=>{ e.preventDefault(); signIn(); });
+    btnMe?.addEventListener("click", me);
+    btnOut?.addEventListener("click", signOut);
+
+    // ✅ OPTION A: Auth tab opens drop-in and hides legacy SPA.
+    (function authTabWiring(){
+      const root = document.documentElement;
+
+      if (new URL(location.href).searchParams.get('signup') === '1') {
+        root.classList.add('signup-mode');
+        window.openSignup && window.openSignup();
+      }
+
+      const authTab = document.querySelector('[data-tab="auth"]');
+      authTab?.addEventListener('click', (e) => {
+        root.classList.add('signup-mode');
+        window.openSignup && window.openSignup();
+        e.stopPropagation();
+      });
+
+      document.querySelectorAll('.tabbar .tab').forEach(btn => {
+        if (btn.dataset.tab !== 'auth') {
+          btn.addEventListener('click', () => {
+            root.classList.remove('signup-mode');
+          });
+        }
+      });
+    })();
+
+    // restore session on load
+    (async ()=>{
+      if(!Auth.token()) return uiSignedOut();
+      const r = await api("/api/profile");
+      if(r.ok) uiSignedIn(r.user); else uiSignedOut();
+    })();
+
+    // ---------------------------------------------------------------------
+    // STEP 3: Trade / Market / Assets wiring (drop-in block)
+    // ---------------------------------------------------------------------
+
+    // router helpers
+    const app = document.getElementById('app');
+    const tabs = document.querySelectorAll('.tabbar .tab');
+
+    function meId() {
+      try { return (JSON.parse(localStorage.getItem('me')||'{}').id) || 0; }
+      catch { return 0; }
+    }
+    function fmt(n, d=4) {
+      const x = typeof n === "string" ? Number(n) : n;
+      return (isNaN(x) ? 0 : x).toLocaleString(undefined, { minimumFractionDigits:d, maximumFractionDigits:d });
+    }
+
+    // lightweight API callers
+    async function getPrices() {
+      const r = await fetch('/api/prices_get');
+      return r.ok ? r.json() : {};
+    }
+    async function getBalances() {
+  // server reads the user from your JWT; no query string needed
+  const data = await api('/api/balances');   // api() already injects Authorization
+  return data.ok ? data : { ok:false, balances:[] };
+}
+
+ // Replace the old placeOrder() with this:
+async function placeOrder(side, qty) {
+  const body = {
+    side: String(side).toLowerCase(),   // 'buy' | 'sell'
+    asset: 'SAM',
+    quote: 'USDT',
+    qty: Number(qty)
+  };
+  // uses your api() helper, which already adds content-type + Auth.header()
+  return api('/api/orders_place', { method: 'POST', body: JSON.stringify(body) });
+}
+
+
+    function setActive(tabName) {
+      tabs.forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
+    }
+
+
+    async function renderHome() {
+      setActive('home');
+      const prices = await getPrices();
+      const px = Number(prices["SAM/USDT"] || 0);
+      app.innerHTML = `
+        <section class="card" style="margin-top:70px">
+          <h2 style="margin:0 0 8px">Welcome to Nova</h2>
+          <div class="small" style="opacity:.85">Live admin price: <b>SAM/USDT</b> = <b>${fmt(px,4)}</b></div>
+          <div style="margin-top:12px">
+            <button class="btn" onclick="navTo('trade')">Go to Trade</button>
+            <button class="btn" onclick="navTo('assets')">View Assets</button>
+          </div>
+        </section>
+      `;
+    }
+
+    async function renderMarket() {
+      setActive('market');
+      const prices = await getPrices();
+      app.innerHTML = `
+        <section class="card" style="margin-top:70px">
+          <h2 style="margin:0 0 8px">Market Overview</h2>
+          <div class="small">Admin-set prices</div>
+          <div style="margin-top:10px">
+            <div class="row" style="display:flex;gap:12px;align-items:center">
+              <div style="width:120px">SAM / USDT</div>
+              <div><b>${fmt(prices["SAM/USDT"] || 0, 6)}</b></div>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    async function renderAssets() {
+  setActive('assets');
+  if (!Auth.token()) { app.innerHTML = mustSignInHTML(); return; } // ⬅️ changed
+  const data = await getBalances();                                  // ⬅️ no uid
+  const rows = (data.balances||[]).map(r => `
+    <tr><td>${r.asset}</td><td style="text-align:right">${fmt(r.balance, 6)}</td></tr>
+  `).join('') || `<tr><td colspan="2" style="opacity:.7">No balances yet</td></tr>`;
+  app.innerHTML = `
+    <section class="card" style="margin-top:70px">
+      <h2 style="margin:0 0 8px">Your Assets</h2>
+      <table style="width:100%;border-collapse:collapse;margin-top:8px">
+        <thead><tr><th style="text-align:left">Asset</th><th style="text-align:right">Balance</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </section>
+  `;
+}
+
+
+    async function renderTrade() {
+      setActive('trade');
+      const uid = meId();
+      if (!uid) { app.innerHTML = mustSignInHTML(); return; }
+
+      const prices = await getPrices();
+      const px = Number(prices["SAM/USDT"] || 0);
+
+      app.innerHTML = `
+        <section class="card" style="margin-top:70px;display:grid;gap:12px">
+          <h2 style="margin:0">Trade SAM</h2>
+          <div class="small" style="opacity:.85">Price (SAM/USDT): <b>${fmt(px,6)}</b></div>
+
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="qtySam" class="auth-input" type="number" min="0" step="0.0001" placeholder="Qty SAM" style="flex:1">
+            <button id="btnBuy"  class="btn">Buy SAM</button>
+            <button id="btnSell" class="btn">Sell SAM</button>
+          </div>
+
+          <div class="small" id="tradeMsg" style="min-height:18px;color:#9fb4ff"></div>
+
+          <div id="balBox" class="small" style="opacity:.9"></div>
+        </section>
+      `;
+
+      async function refreshBalancesBox() {
+        const b = await getBalances();
+        const sam = Number((b.balances||[]).find(x=>x.asset==='SAM')?.balance || 0);
+        const usdt = Number((b.balances||[]).find(x=>x.asset==='USDT')?.balance || 0);
+        document.getElementById('balBox').innerHTML = `
+          Balances — SAM: <b>${fmt(sam,6)}</b> | USDT: <b>${fmt(usdt,6)}</b>
+        `;
+      }
+      await refreshBalancesBox();
+
+      const qtyInput = document.getElementById('qtySam');
+      const msg = document.getElementById('tradeMsg');
+      const doOrder = async (side) => {
+  const q = Number(qtyInput.value);
+  if (!q || q <= 0) { msg.textContent = "Enter a positive quantity."; return; }
+
+  msg.textContent = `Placing ${side.toLowerCase()} ${fmt(q,4)} SAM…`;
+  try {
+    const res = await placeOrder(side, q);             // { ok, px, side, qty, ... }
+    if (!res.ok) {
+      msg.textContent = "Order failed: " + (res.error || "");
+      return;
+    }
+    const cost = Number(res.qty) * Number(res.px);
+    msg.textContent = `Filled ${res.side.toUpperCase()} ${fmt(res.qty,4)} SAM @ ${fmt(res.px,6)} (USDT ${fmt(cost,4)})`;
+    qtyInput.value = "";
+    await refreshBalancesBox();                        // or use res.balances to update inline
+  } catch (e) {
+    console.error(e);
+    msg.textContent = "Network error.";
+  }
+};
+
+
+      document.getElementById('btnBuy').onclick  = () => doOrder('BUY');
+      document.getElementById('btnSell').onclick = () => doOrder('SELL');
+    }
+
+    function mustSignInHTML() {
+      return `
+        <section class="card" style="margin-top:70px">
+          <h2 style="margin:0 0 8px">Please sign in</h2>
+          <div class="small" style="opacity:.85">Use the top bar to log in, or open the Auth tab to create an account.</div>
+          <div style="margin-top:10px"><button class="btn" onclick="navTo('auth')">Open Auth</button></div>
+        </section>
+      `;
+    }
+
+    function navTo(tabName) {
+      if (tabName === 'trade') renderTrade();
+      else if (tabName === 'assets') renderAssets();
+      else if (tabName === 'market') renderMarket();
+      else renderHome();
+    }
+
+    document.querySelector('[data-tab="home"]')  ?.addEventListener('click', () => navTo('home'));
+    document.querySelector('[data-tab="market"]')?.addEventListener('click', () => navTo('market'));
+    document.querySelector('[data-tab="trade"]') ?.addEventListener('click', () => navTo('trade'));
+    document.querySelector('[data-tab="assets"]')?.addEventListener('click', () => navTo('assets'));
+
+    // show home on first load
+    navTo('home');
+  </script>
+</body>
+</html>

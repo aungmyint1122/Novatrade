@@ -1,0 +1,310 @@
+/* ============================================
+   NOVA v2 — Polished Dark UI (step 1: CSS only)
+   Keeps existing hooks: .nav .tabbar .pill .lang .table .card
+   ============================================ */
+
+:root{
+  --bg:#0b0f1a;
+  --bg-2:#0e1424;
+  --card:#11182b;
+  --elev:#0f1526;
+  --line:#243049;
+
+  --text:#e8eefc;
+  --muted:#9aa4c7;
+
+  --accent:#20d0ff;
+  --accent-2:#18c964;
+  --warn:#ffb020;
+  --err:#ff4d4f;
+
+  --radius:14px;
+  --shadow-md: 0 10px 30px rgba(0,0,0,.30);
+  --shadow-lg: 0 16px 44px rgba(0,0,0,.45);
+}
+
+*{ box-sizing:border-box }
+html,body{ height:100% }
+
+body{
+  margin:0;
+  font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(1200px 600px at 20% -10%, rgba(32,208,255,.08), transparent),
+    radial-gradient(900px 400px at 110% 10%, rgba(24,201,100,.05), transparent),
+    var(--bg);
+}
+
+a{ color:var(--accent); text-decoration:none }
+a:hover{ text-decoration:underline }
+
+/* ===== Top Nav ===== */
+.nav{
+  position:sticky; top:0; z-index:10;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 16px;
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.05));
+  backdrop-filter:saturate(1.05) blur(6px);
+}
+.brand{ font-weight:800; letter-spacing:.4px }
+.nav-right{ display:flex; align-items:center; gap:8px; margin-left:auto }
+
+/* Runtime banner (errors / notices) */
+.banner{
+  display:none;
+  padding:8px 16px;
+  border-bottom:1px solid var(--line);
+  background:#13203a;
+  color:var(--muted);
+}
+
+/* ===== Layout ===== */
+.container{ max-width:1200px; margin:24px auto; padding:0 16px }
+.grid{ display:grid; gap:16px }
+.row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+
+main{ padding-bottom:84px } /* space for bottom tabbar on mobile */
+
+/* ===== Cards ===== */
+.card{
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.03), rgba(255,255,255,.01)),
+    var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow-md);
+  padding:16px;
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.card:hover{
+  transform:translateY(-1px);
+  box-shadow:var(--shadow-lg);
+  border-color:rgba(32,208,255,.20);
+}
+.card h3{ margin:0 0 8px }
+
+/* ===== Tables ===== */
+.table{ width:100%; border-collapse:collapse }
+.table th,.table td{
+  border-bottom:1px solid var(--line);
+  padding:10px;
+  vertical-align:middle;
+  text-align:right;
+}
+.table th:first-child,.table td:first-child{ text-align:left }
+.table tbody tr:hover{ background:rgba(32,208,255,.05) }
+
+/* ===== Badges, Pills, Buttons ===== */
+.badge{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:4px 8px;
+  border:1px solid var(--line);
+  border-radius:999px;
+  background:#0f1426;
+  color:var(--muted);
+  font-size:12px;
+}
+.small{ font-size:12px; color:var(--muted) }
+
+.pill{
+  cursor:pointer;
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:6px 12px;
+  background:#0f1426;
+  color:var(--text);
+  font-size:13px;
+  transition: border-color .18s ease, background .18s ease, color .18s ease, transform .12s ease;
+}
+.pill:hover{ border-color:#2b395a; transform:translateY(-1px) }
+.pill.active{ background:rgba(32,208,255,.12); color:var(--accent); border-color:var(--accent) }
+.pill.small{ font-size:12px; padding:4px 10px }
+
+.btn{
+  cursor:pointer;
+  border-radius:10px;
+  border:1px solid var(--line);
+  padding:10px 14px;
+  background:var(--accent);
+  color:#001018;
+  font-weight:700;
+  transition: filter .15s ease, transform .12s ease, box-shadow .2s ease;
+}
+.btn:hover{ filter:brightness(1.04) }
+.btn:active{ transform:translateY(1px) }
+.btn.ghost{ background:#0f1426; color:var(--text) }
+
+/* Focus rings for keyboard users */
+button:focus, .pill:focus, .btn:focus, .input:focus, .sel:focus{
+  outline:2px solid rgba(32,208,255,.6);
+  outline-offset:2px;
+}
+
+/* ===== Inputs ===== */
+.input, .sel{
+  background:#0f1426;
+  border:1px solid var(--line);
+  color:var(--text);
+  padding:10px 12px;
+  border-radius:10px;
+  width:100%;
+}
+.input::placeholder{ color:var(--muted) }
+.sel{ appearance:none }
+
+/* ===== Numbers & status colors ===== */
+.positive{ color:var(--accent-2) }
+.negative{ color:var(--err) }
+.click{ cursor:pointer }
+
+/* Flash row animation for live updates */
+.flash{ animation:flash .4s linear }
+@keyframes flash{ 0%{ background:rgba(32,208,255,.14) } 100%{ background:transparent } }
+
+/* ===== Bottom Tabbar ===== */
+.tabbar{
+  position:fixed; left:0; right:0; bottom:0; z-index:10;
+  background:#0f1426;
+  border-top:1px solid var(--line);
+  display:flex; justify-content:space-around; gap:6px;
+  padding:8px 8px;
+}
+.tab{
+  appearance:none;
+  background:transparent; border:0; color:#9aa4c7;
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:6px 10px;
+  border-radius:12px;
+  min-width:72px;
+  transition: color .18s ease, background .18s ease, transform .12s ease, box-shadow .2s ease;
+}
+.tab svg{ width:22px; height:22px; stroke:currentColor; fill:none; stroke-width:2 }
+.tab:hover{ color:#cdd6f0 }
+.tab.active{
+  color:var(--accent);
+  background:rgba(32,208,255,.10);
+  box-shadow:0 6px 22px rgba(32,208,255,.18);
+}
+
+/* ===== Market / Trade ===== */
+.chartbox{ position:relative; height:520px }
+canvas{ display:block; width:100%; height:100% }
+
+.toolbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px }
+.pills{ display:flex; gap:8px; flex-wrap:wrap }
+
+.split{ display:grid; grid-template-columns:1fr; gap:16px }
+@media (min-width:980px){ .split{ grid-template-columns:2fr 1fr } }
+
+.box{
+  background:#0f1426;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:12px;
+}
+
+/* ===== Language dropdown (keeps your HTML structure) ===== */
+.lang{ position:relative }
+.lang .dropdown{
+  position:absolute; right:0; top:110%;
+  min-width:200px; max-height:320px; overflow:auto;
+  background:#0f1426; border:1px solid var(--line);
+  border-radius:10px; box-shadow:var(--shadow-md);
+  padding:6px 0; list-style:none; margin:0; display:none; z-index:50;
+}
+.lang.open .dropdown{ display:block }
+.lang .dropdown li{
+  padding:10px 12px; cursor:pointer; white-space:nowrap;
+  display:flex; justify-content:space-between; align-items:center;
+}
+.lang .dropdown li:hover{ background:#151d33 }
+
+/* ===== Utilities ===== */
+.badge + .badge{ margin-left:6px }
+.hide{ display:none !important }
+
+/* ===== Responsive Tweaks ===== */
+@media (max-width:740px){
+  .container{ margin-bottom:120px }
+  .tab span{ font-size:12px }
+}
+/* --- Stabilize badges/buttons & prevent scroll jump --- */
+html { overflow-anchor: none; }                   /* stop viewport re-anchoring */
+.badge, .pill, .btn { white-space: nowrap; }     /* no wrapping mid-update */
+
+/* keep the portfolio badge from changing width as numbers tick */
+#estTotal{
+  min-width: 220px;              /* fixed footprint */
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums; /* monospaced digits to avoid width jitter */
+}
+/* Deposit / Withdraw cards */
+.card.transfer {
+  padding: 16px;
+  margin-top: 16px;
+  background: var(--card);
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+}
+
+.card.transfer h4 {
+  margin-bottom: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* form rows */
+.card.transfer .row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.card.transfer label {
+  flex: 0 0 90px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.card.transfer input,
+.card.transfer select {
+  flex: 1;
+  padding: 8px 10px;
+  background: #0e1422;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* buttons */
+.card.transfer .btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.card.transfer .btn.primary {
+  background: var(--accent);
+  color: #000;
+  font-weight: 600;
+}
+
+.card.transfer .btn.ghost {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+/* tone down hover motion on desktop to avoid micro-jiggle */
+@media (pointer:fine){
+  .pill:hover{ transform: none; } /* was translateY(-1px) */
+  .btn:active{ transform: none; } /* remove the 1px press-in shift */
+}
+/* keep cards inline by default */
+.card { position: static; z-index: 1; }

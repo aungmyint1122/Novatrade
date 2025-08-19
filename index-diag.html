@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Nova — Diagnostics</title>
+<style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto;margin:20px;background:#0b0f1a;color:#e8eefc} code{background:#111a33;padding:2px 6px;border-radius:6px} .ok{color:#18c964}.bad{color:#ff4d4f} .muted{color:#9aa4c7}</style>
+</head>
+<body>
+<h1>Diagnostics</h1>
+<p class="muted">This page helps find why <code>index.html</code> looks blank.</p>
+<ol>
+  <li>Inline script run: <span id="s1" class="bad">no</span></li>
+  <li>WebSocket to Binance: <span id="s2" class="muted">testing…</span></li>
+  <li>REST to Binance: <span id="s3" class="muted">testing…</span></li>
+  <li>Console error: <span id="s4" class="muted">none</span></li>
+  <li>Protocol: <code id="proto"></code></li>
+</ol>
+<p>Tip: If Inline script is <span class="bad">no</span>, your Content‑Security‑Policy is blocking inline JS. Use the provided <code>_headers</code>.</p>
+<script>
+document.getElementById('s1').textContent='yes'; document.getElementById('s1').className='ok';
+document.getElementById('proto').textContent=location.protocol;
+window.addEventListener('error', function(e){ var s4=document.getElementById('s4'); s4.textContent=(e.message||'error'); s4.className='bad'; });
+// WebSocket test
+try{
+  var ws=new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@miniTicker');
+  ws.onopen=function(){ var s2=document.getElementById('s2'); s2.textContent='ok'; s2.className='ok'; };
+  ws.onerror=function(){ var s2=document.getElementById('s2'); s2.textContent='blocked'; s2.className='bad'; };
+  ws.onclose=function(){ var s2=document.getElementById('s2'); if(s2.textContent!=='ok'){ s2.textContent='blocked/closed'; s2.className='bad'; } };
+}catch(e){ var s2=document.getElementById('s2'); s2.textContent='error'; s2.className='bad'; }
+// REST test
+(function(){
+  var xhr=new XMLHttpRequest();
+  xhr.onreadystatechange=function(){ if(xhr.readyState===4){ var s3=document.getElementById('s3'); if((xhr.status>=200&&xhr.status<300)||xhr.status===0){ s3.textContent='ok'; s3.className='ok'; } else { s3.textContent='blocked '+xhr.status; s3.className='bad'; } } };
+  xhr.open('GET','https://api.binance.com/api/v3/time',true); xhr.send();
+})();
+</script>
+</body>
+</html>
