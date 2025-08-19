@@ -5,6 +5,7 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["pg"]
+  directory = "functions"
 
 # redirect /api/* → serverless functions
 [[redirects]]
@@ -19,8 +20,6 @@
     Access-Control-Allow-Origin = "*"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
-[functions]
-  directory = "functions"
 
 [scheduled_functions]
   # run every day at 00:00 UTC
