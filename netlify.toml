@@ -19,3 +19,9 @@
     Access-Control-Allow-Origin = "*"
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
+[functions]
+  directory = "functions"
+
+[scheduled_functions]
+  # run every day at 00:00 UTC
+  prices_auto = "0 0 * * *"
