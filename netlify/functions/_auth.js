@@ -23,11 +23,18 @@ function getBearer(event) {
 
 const SECRET = (process.env.JWT_SECRET || "dev").trim();
 
+// 🔑 Create a JWT for a user
 export function signToken(user) {
-  const claims = { sub: user.id, username: user.username, email: user.email };
+  const claims = { 
+    sub: user.id, 
+    username: user.username, 
+    email: user.email,
+    is_admin: user.is_admin || false   // include admin flag
+  };
   return jwt.sign(claims, SECRET, { expiresIn: "7d" });
 }
 
+// 🔑 Generic token verification
 export function getAuth(event) {
   const token = getBearer(event);
   if (!token) return { ok:false, statusCode:401, body:{ ok:false, error:"no_auth" } };
@@ -37,4 +44,17 @@ export function getAuth(event) {
   } catch {
     return { ok:false, statusCode:401, body:{ ok:false, error:"invalid_token" } };
   }
+}
+
+// 🔑 Require admin privileges
+export function authAdmin(event) {
+  const auth = getAuth(event);
+  if (!auth.ok) {
+    throw new Error("invalid_token");
+  }
+  const claims = auth.claims;
+  if (!claims.is_admin) {
+    throw new Error("not_admin");
+  }
+  return claims;
 }
