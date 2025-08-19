@@ -5,7 +5,6 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["pg"]
-  directory = "functions"
 
 # redirect /api/* → serverless functions
 [[redirects]]
@@ -21,6 +20,7 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
 
-[scheduled_functions]
-  # run every day at 00:00 UTC
-  prices_auto = "0 0 * * *"
+# scheduled function (auto daily price update)
+[[scheduled]]
+  cron = "0 0 * * *"
+  command = "prices_auto"
