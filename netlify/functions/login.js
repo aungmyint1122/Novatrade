@@ -1,46 +1,51 @@
-import bcrypt from "bcryptjs";
-import { signToken } from "./_auth.js";
-import { pool } from "./_db.js";
+// netlify/functions/login.js
+const jwt = require("jsonwebtoken");
+const { Pool } = require("pg");
 
-export default async function handler(req) {
-  const headers = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  };
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-  if (req.httpMethod !== "POST") {
-    return { statusCode: 405, headers, body: JSON.stringify({ ok: false, error: "method_not_allowed" }) };
-  }
-
+exports.handler = async (event) => {
   try {
-    const { email, password } = JSON.parse(req.body || "{}");
-    if (!email || !password) {
-      return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: "missing_fields" }) };
+    if (event.httpMethod !== "POST") {
+      return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    // fetch user from DB including is_admin
-    const { rows } = await pool().query(
-      "SELECT id, username, email, password, is_admin FROM users WHERE lower(email)=lower($1) LIMIT 1",
+    const { email, password } = JSON.parse(event.body);
+    const client = await pool.connect();
+
+    const result = await client.query(
+      "SELECT id, username, email, password, is_admin FROM users WHERE email = $1",
       [email]
     );
+    client.release();
 
-    if (!rows.length) {
-      return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: "invalid_credentials" }) };
+    if (result.rowCount === 0) {
+      return { statusCode: 401, body: JSON.stringify({ error: "Invalid email" }) };
     }
 
-    const u = rows[0];
-    const ok = await bcrypt.compare(password, u.password || "");
-    if (!ok) {
-      return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: "invalid_credentials" }) };
+    const user = result.rows[0];
+
+    if (user.password !== password) {
+      return { statusCode: 401, body: JSON.stringify({ error: "Invalid password" }) };
     }
 
-    // include is_admin in token
-    const token = signToken(u);
-    const user = { id: u.id, username: u.username, email: u.email, is_admin: u.is_admin };
+    const token = jwt.sign(
+      {
+        sub: user.id,
+        username: user.username,
+        email: user.email,
+        is_admin: user.is_admin,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
 
-    return { statusCode: 200, headers, body: JSON.stringify({ ok: true, token, user }) };
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ ok: true, token, user }),
+    };
   } catch (err) {
-    console.error("Login error:", err);
-    return { statusCode: 500, headers, body: JSON.stringify({ ok: false, error: "server_error" }) };
+    console.error(err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
-}
+};

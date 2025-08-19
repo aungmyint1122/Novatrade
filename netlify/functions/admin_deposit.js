@@ -1,47 +1,50 @@
-import { verifyToken } from "./_auth.js";
-import { pool } from "./_db.js";
+// netlify/functions/admin_deposit.js
+const jwt = require("jsonwebtoken");
+const { Pool } = require("pg");
 
-export default async function handler(req) {
-  const headers = {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  };
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
-  if (req.httpMethod !== "POST") {
-    return { statusCode: 405, headers, body: JSON.stringify({ ok: false, error: "method_not_allowed" }) };
-  }
-
+exports.handler = async (event) => {
   try {
-    const auth = req.headers.authorization || "";
-    if (!auth.startsWith("Bearer ")) {
-      return { statusCode: 401, headers, body: JSON.stringify({ ok: false, error: "missing_token" }) };
+    if (event.httpMethod !== "POST") {
+      return { statusCode: 405, body: "Method Not Allowed" };
     }
 
-    const token = auth.replace("Bearer ", "").trim();
-    const decoded = verifyToken(token);
+    const authHeader = event.headers.authorization || "";
+    const token = authHeader.replace("Bearer ", "");
 
-    // check is_admin flag
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return { statusCode: 401, body: JSON.stringify({ error: "invalid_token" }) };
+    }
+
     if (!decoded.is_admin) {
-      return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: "forbidden_not_admin" }) };
+      return { statusCode: 403, body: JSON.stringify({ error: "not_admin" }) };
     }
 
-    const { user_id, asset, amount } = JSON.parse(req.body || "{}");
-    if (!user_id || !asset || !amount) {
-      return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: "missing_fields" }) };
-    }
+    const { user_id, asset, amount } = JSON.parse(event.body);
+    const client = await pool.connect();
 
-    // insert/update balance
-    await pool().query(
+    await client.query("BEGIN");
+    await client.query(
       `INSERT INTO balances (user_id, asset, amount)
        VALUES ($1, $2, $3)
        ON CONFLICT (user_id, asset)
-       DO UPDATE SET amount = balances.amount + $3`,
+       DO UPDATE SET amount = balances.amount + EXCLUDED.amount`,
       [user_id, asset, amount]
     );
+    await client.query("COMMIT");
 
-    return { statusCode: 200, headers, body: JSON.stringify({ ok: true, message: "deposit_success" }) };
+    client.release();
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ ok: true, user_id, asset, amount }),
+    };
   } catch (err) {
-    console.error("Admin deposit error:", err);
-    return { statusCode: 500, headers, body: JSON.stringify({ ok: false, error: "server_error" }) };
+    console.error(err);
+    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
-}
+};
