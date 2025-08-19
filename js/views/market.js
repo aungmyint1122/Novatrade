@@ -1,5 +1,5 @@
 // js/views/market.js
-import { COINS, PriceFeed, fmt, CandleChart, loadKlines } from '../core.js';
+import { COINS, PriceFeed, fmt, CandleChart, loadKlines, CONFIG } from '../core.js';
 
 export default function MarketView(cb) {
   const view = document.createElement('div');
@@ -25,28 +25,45 @@ export default function MarketView(cb) {
 
   const tb = top.querySelector('#tbody');
 
-  function seed(){
+  // --- build full list (COINS + SAM admin coin)
+  function getCoins() {
+    const cfg = CONFIG.load();
+    const list = [...COINS]; // Binance coins
+    if (!list.includes("SAM")) list.push("SAM"); // ensure SAM is always listed
+    return list.map(sym => {
+      if (sym === "SAM") {
+        return {
+          sym,
+          price: cfg.samUsd || 0.01,
+          change: cfg.samChange || 0, // optional % daily change
+        };
+      }
+      const d = PriceFeed.map[sym] || {};
+      return { sym, price: d.price || 0, change: d.change || 0 };
+    });
+  }
+
+  function seed() {
     tb.innerHTML = '';
-    for (let i=0;i<COINS.length;i++){
-      const base = COINS[i];
-      const d = PriceFeed.map[base] || {};
-      const price = d.price || 0;
-      const chg = d.change || 0;
+    const list = getCoins();
+    list.forEach((coin, i) => {
       const tr = document.createElement('tr');
       tr.className = 'click';
-      tr.setAttribute('data-base', base);
+      tr.setAttribute('data-base', coin.sym);
       tr.innerHTML = `
         <td>${i+1}</td>
-        <td><b>${base}</b></td>
-        <td class="p">${fmt(price)}</td>
-        <td class="${chg>=0?'positive':'negative'}">${(chg>=0?'+':'')}${(chg?chg.toFixed(2):'0.00')}%</td>
+        <td><b>${coin.sym}</b></td>
+        <td class="p">${fmt(coin.price)}</td>
+        <td class="${coin.change>=0?'positive':'negative'}">
+          ${(coin.change>=0?'+':'')}${coin.change.toFixed(2)}%
+        </td>
       `;
       tb.appendChild(tr);
-    }
+    });
   }
   seed();
 
-  // live price blink
+  // live update (Binance only; SAM uses admin update)
   PriceFeed.on(function(sym, price){
     const row = tb.querySelector('tr[data-base="'+sym+'"]');
     if (!row) return;
@@ -72,15 +89,19 @@ export default function MarketView(cb) {
   let current = 'BTC';
   function load(base){
     current = base;
-    loadKlines(base,'1m', rows => c.setData(rows,'1m'));
-    // highlight selection
+    if (base === "SAM") {
+      // no Binance chart for SAM → fake static line
+      c.setData([{t:Date.now(),o:CONFIG.load().samUsd,h:CONFIG.load().samUsd,l:CONFIG.load().samUsd,c:CONFIG.load().samUsd}], '1d');
+    } else {
+      loadKlines(base,'1m', rows => c.setData(rows,'1m'));
+    }
     tb.querySelectorAll('tr').forEach(r=>r.style.background='transparent');
     const sel = tb.querySelector('tr[data-base="'+base+'"]');
     if (sel) sel.style.background = 'rgba(32,208,255,.06)';
   }
   load('BTC');
 
-  PriceFeed.on((sym, price) => { if (sym === current) c.pushLive(price); });
+  PriceFeed.on((sym, price) => { if (sym === current && sym !== "SAM") c.pushLive(price); });
 
   tb.addEventListener('click', function(e){
     const el = e.target.closest ? e.target.closest('tr[data-base]') : null;
@@ -88,7 +109,7 @@ export default function MarketView(cb) {
     load(el.getAttribute('data-base'));
   });
 
-  // search (light debounce)
+  // search
   const search = top.querySelector('#search'), clear = top.querySelector('#clear');
   let t = 0;
   function apply(){

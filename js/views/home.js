@@ -1,8 +1,7 @@
 // js/views/home.js
-import { AUTH, CONFIG, PriceFeed, COINS } from '../core.js';
-import MarketView from './market.js'; // default import
+import { AUTH, CONFIG, PriceFeed, COINS, fmt } from '../core.js';
 
-// Router helper: click the real tab button (what your router already listens for)
+// Router helper
 function nav(tab){
   const btn = document.querySelector(`#tabs .tab[data-tab="${tab}"]`);
   if (btn) {
@@ -20,7 +19,7 @@ export default function HomeView(cb){
   const wrap = document.createElement('div');
   wrap.className = 'grid';
 
-  // ===== Hero / Welcome =====
+  // ===== Hero =====
   const hero = document.createElement('section');
   hero.className = 'card';
   hero.innerHTML = `
@@ -29,13 +28,10 @@ export default function HomeView(cb){
       Create a free account to trade, track assets and see live market data.
     </p>
     <div class="row small" style="gap:8px;margin-bottom:12px">
-      <div class="badge">Live prices from Binance (with fallback)</div>
+      <div class="badge">Live prices from Binance + Admin SAM</div>
       <div class="badge" id="estTotal">Est Total Value (USD): $0.00</div>
     </div>
-    <div id="ctaRow" class="row" style="gap:10px">
-      <button id="ctaStart"  type="button" class="btn">Get started</button>
-      <button id="ctaSignin" type="button" class="btn ghost">I already have an account</button>
-    </div>
+    <div id="ctaRow" class="row" style="gap:10px"></div>
   `;
   wrap.appendChild(hero);
 
@@ -44,23 +40,22 @@ export default function HomeView(cb){
     nav('auth');
   }
 
-  // --- anti-jitter state ---
-  let lastMode = null;          // 'in' | 'out'
-  let lastEst  = '';            // last Est Total text
-  let lastTick = 0;             // throttle updates
+  let lastMode = null;
+  let lastEst  = '';
+  let lastTick = 0;
 
   function updateHero(){
     const now = Date.now();
-    if (now - lastTick < 600) return; // throttle to ~0.6s
+    if (now - lastTick < 600) return;
     lastTick = now;
 
     const me  = AUTH.me?.();
     const cfg = CONFIG.load();
     const px  = {
-      BTC: (PriceFeed.map.BTC && PriceFeed.map.BTC.price) || 0,
-      ETH: (PriceFeed.map.ETH && PriceFeed.map.ETH.price) || 0,
+      BTC: PriceFeed.map.BTC?.price || 0,
+      ETH: PriceFeed.map.ETH?.price || 0,
       USDT: 1,
-      SAM: (cfg.samUsd || 0.01)
+      SAM: cfg.samUsd || 0.01
     };
 
     let total = 0;
@@ -74,14 +69,12 @@ export default function HomeView(cb){
     const est   = hero.querySelector('#estTotal');
     const row   = hero.querySelector('#ctaRow');
 
-    // only touch total text if it changed
     const estText = 'Est Total Value (USD): $ ' + total.toLocaleString(undefined,{maximumFractionDigits:2});
     if (est && estText !== lastEst){
       est.textContent = estText;
       lastEst = estText;
     }
 
-    // swap CTA set ONLY when mode changes
     const mode = me ? 'in' : 'out';
     if (mode !== lastMode){
       if (me){
@@ -115,43 +108,33 @@ export default function HomeView(cb){
   updateHero();
   PriceFeed.on(updateHero);
 
-  // ===== Quick actions (render only when LOGGED OUT) =====
-  if (!AUTH.me?.()){
-    const quick = document.createElement('section');
-    quick.className = 'card';
-    quick.innerHTML = `
-      <h3>Quick actions</h3>
-      <div class="row" style="gap:8px">
-        <button type="button" class="pill" id="qa-trade">Go to Trade</button>
-        <button type="button" class="pill" id="qa-assets">View Assets</button>
-        <button type="button" class="pill" id="qa-market">Market Overview</button>
-      </div>
-    `;
-    wrap.appendChild(quick);
-    quick.querySelector('#qa-trade').onclick  = () => nav('trade');
-    quick.querySelector('#qa-assets').onclick = () => nav('assets');
-    quick.querySelector('#qa-market').onclick = () => nav('market');
+  // ===== Market Watch (direct render, no MarketView clone) =====
+  const marketBox = document.createElement('section');
+  marketBox.className = 'card';
+  marketBox.innerHTML = `
+    <h3>Market Watch</h3>
+    <table class="table">
+      <thead><tr><th>Asset</th><th>Price</th><th>24h %</th></tr></thead>
+      <tbody id="marketRows"></tbody>
+    </table>
+  `;
+  wrap.appendChild(marketBox);
+
+  function paintMarket(){
+    const tbody = marketBox.querySelector('#marketRows');
+    if (!tbody) return;
+    tbody.innerHTML = COINS.map(sym => {
+      const d = PriceFeed.map[sym] || {};
+      const p = d.price || 0;
+      const ch = d.change || 0;
+      const color = ch >= 0 ? 'positive' : 'negative';
+      return `<tr><td>${sym}/USDT</td><td>${fmt(p)}</td><td class="${color}">${ch.toFixed(2)}%</td></tr>`;
+    }).join('');
   }
+  paintMarket();
+  PriceFeed.on(paintMarket);
 
-  // ===== Market Watch (reuse MarketView — table only) =====
-  const marketHolder = document.createElement('div');
-  wrap.appendChild(marketHolder);
-
-  MarketView(function(m){
-    const firstCard = m.querySelector('section.card');
-    if (firstCard){
-      const box = document.createElement('section');
-      box.className = 'card';
-      box.innerHTML = `<h3>Market Watch</h3>`;
-      const tableWrap = firstCard.querySelector('table')?.parentElement || firstCard;
-      box.appendChild(tableWrap.cloneNode(true));
-      marketHolder.appendChild(box);
-    }
-    renderMovers();
-    cb(wrap);
-  });
-
-  // ===== Top Movers (24h) =====
+  // ===== Top Movers =====
   function renderMovers(){
     const movers = document.createElement('section');
     movers.className = 'card';
@@ -187,4 +170,7 @@ export default function HomeView(cb){
     paintMovers();
     PriceFeed.on(paintMovers);
   }
+  renderMovers();
+
+  cb(wrap);
 }

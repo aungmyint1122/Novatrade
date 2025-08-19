@@ -32,23 +32,78 @@ export const AUTH = {
     try{ return btoa(unescape(encodeURIComponent(s))).split('').reverse().join(''); }
     catch(e){ return s; }
   },
-  ensureShape(u){ if(!u)u={}; if(!u.role)u.role='user'; if(!u.status)u.status='active';
-    if(!u.balances)u.balances={ETH:0,BTC:0,USDT:0,SAM:0}; if(!u.ledger)u.ledger=[]; return u; },
-  users(){ try{ let a=JSON.parse(localStorage.getItem(UKEY)||'[]'); if(!Array.isArray(a)) a=[]; return a.map(this.ensureShape); }catch(e){ return []; } },
-  save(a){ localStorage.setItem(UKEY, JSON.stringify(a)); },
-  me(){ try{ const s=JSON.parse(localStorage.getItem(SKEY)||'null')||{}; const email=s.email||''; return this.users().find(u=>u.email===email)||null; }catch(e){ return null; } },
-  async signup(email, pass){
-    const h = await this.hash(pass);
-    const a=this.users(); if(a.some(u=>u.email===email)) return {error:'exists'};
-    a.unshift(this.ensureShape({email,passHash:h,createdAt:new Date().toISOString()}));
-    this.save(a); localStorage.setItem(SKEY, JSON.stringify({email})); return {ok:true};
-  },
-  async signin(email, pass){
-    const h=await this.hash(pass); const a=this.users(); const u=a.find(x=>x.email===email);
-    if(!u) return {error:'no'}; if(u.status==='locked') return {error:'locked'};
-    if(u.passHash!==h) return {error:'bad'}; localStorage.setItem(SKEY, JSON.stringify({email})); return {ok:true};
-  },
-  signout(){ localStorage.removeItem(SKEY); }
+  ensureShape(u) {
+  if (!u) u = {};
+  if (!u.role) u.role = 'user';
+  if (!u.status) u.status = 'active';
+
+  // balances init
+  if (!u.balances) u.balances = {};
+
+  // Make sure every coin in COINS has a balance entry
+  for (const c of COINS) {
+    if (typeof u.balances[c] !== 'number') {
+      u.balances[c] = 0;
+    }
+  }
+
+  // Always guarantee USDT exists
+  if (typeof u.balances.USDT !== 'number') {
+    u.balances.USDT = 0;
+  }
+
+  if (!u.ledger) u.ledger = [];
+  return u;
+},
+
+users() {
+  try {
+    let a = JSON.parse(localStorage.getItem(UKEY) || '[]');
+    if (!Array.isArray(a)) a = [];
+    return a.map(this.ensureShape);
+  } catch (e) {
+    return [];
+  }
+},
+
+save(a) {
+  localStorage.setItem(UKEY, JSON.stringify(a));
+},
+
+me() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SKEY) || 'null') || {};
+    const email = s.email || '';
+    return this.users().find(u => u.email === email) || null;
+  } catch (e) {
+    return null;
+  }
+},
+
+async signup(email, pass) {
+  const h = await this.hash(pass);
+  const a = this.users();
+  if (a.some(u => u.email === email)) return { error: 'exists' };
+  a.unshift(this.ensureShape({ email, passHash: h, createdAt: new Date().toISOString() }));
+  this.save(a);
+  localStorage.setItem(SKEY, JSON.stringify({ email }));
+  return { ok: true };
+},
+
+async signin(email, pass) {
+  const h = await this.hash(pass);
+  const a = this.users();
+  const u = a.find(x => x.email === email);
+  if (!u) return { error: 'no' };
+  if (u.status === 'locked') return { error: 'locked' };
+  if (u.passHash !== h) return { error: 'bad' };
+  localStorage.setItem(SKEY, JSON.stringify({ email }));
+  return { ok: true };
+},
+
+signout() {
+  localStorage.removeItem(SKEY);
+}
 };
 
 /* ---------- coins + http helpers ---------- */
