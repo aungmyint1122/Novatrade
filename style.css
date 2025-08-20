@@ -1,5 +1,5 @@
 /* ============================================
-   NOVA v2 — Polished Dark UI (step 1: CSS only)
+   NOVA v2 — Polished Dark UI (CSS only)
    Keeps existing hooks: .nav .tabbar .pill .lang .table .card
    ============================================ */
 
@@ -205,7 +205,7 @@ canvas{ display:block; width:100%; height:100% }
   padding:12px;
 }
 
-/* ===== Language dropdown (keeps your HTML structure) ===== */
+/* ===== Language dropdown (CSS only, JS handled elsewhere) ===== */
 .lang{ position:relative }
 .lang .dropdown{
   position:absolute; right:0; top:110%;
@@ -230,17 +230,18 @@ canvas{ display:block; width:100%; height:100% }
   .container{ margin-bottom:120px }
   .tab span{ font-size:12px }
 }
-/* --- Stabilize badges/buttons & prevent scroll jump --- */
-html { overflow-anchor: none; }                   /* stop viewport re-anchoring */
-.badge, .pill, .btn { white-space: nowrap; }     /* no wrapping mid-update */
 
-/* keep the portfolio badge from changing width as numbers tick */
+/* --- Stabilize badges/buttons & prevent scroll jump --- */
+html { overflow-anchor: none; }
+.badge, .pill, .btn { white-space: nowrap; }
+
 #estTotal{
-  min-width: 220px;              /* fixed footprint */
+  min-width: 220px;
   text-align: right;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums; /* monospaced digits to avoid width jitter */
+  font-variant-numeric: tabular-nums;
 }
+
 /* Deposit / Withdraw cards */
 .card.transfer {
   padding: 16px;
@@ -249,28 +250,23 @@ html { overflow-anchor: none; }                   /* stop viewport re-anchoring 
   border-radius: 12px;
   box-shadow: 0 2px 6px rgba(0,0,0,0.4);
 }
-
 .card.transfer h4 {
   margin-bottom: 12px;
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
 }
-
-/* form rows */
 .card.transfer .row {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
 }
-
 .card.transfer label {
   flex: 0 0 90px;
   font-size: 13px;
   color: var(--muted);
 }
-
 .card.transfer input,
 .card.transfer select {
   flex: 1;
@@ -281,20 +277,16 @@ html { overflow-anchor: none; }                   /* stop viewport re-anchoring 
   color: var(--text);
   font-size: 14px;
 }
-
-/* buttons */
 .card.transfer .btn {
   padding: 8px 16px;
   border-radius: 8px;
   font-size: 14px;
 }
-
 .card.transfer .btn.primary {
   background: var(--accent);
   color: #000;
   font-weight: 600;
 }
-
 .card.transfer .btn.ghost {
   background: transparent;
   border: 1px solid var(--accent);
@@ -303,8 +295,9 @@ html { overflow-anchor: none; }                   /* stop viewport re-anchoring 
 
 /* tone down hover motion on desktop to avoid micro-jiggle */
 @media (pointer:fine){
-  .pill:hover{ transform: none; } /* was translateY(-1px) */
-  .btn:active{ transform: none; } /* remove the 1px press-in shift */
+  .pill:hover{ transform: none; }
+  .btn:active{ transform: none; }
 }
+
 /* keep cards inline by default */
 .card { position: static; z-index: 1; }
