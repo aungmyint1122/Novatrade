@@ -426,100 +426,89 @@ async function placeOrder(side, qty) {
 }
 
 
-    async function renderTrade() {
-      setActive('trade');
-      const uid = meId();
-      if (!uid) { app.innerHTML = mustSignInHTML(); return; }
+    
+async function renderTrade() {
+  setActive('trade');
+  const uid = meId();
+  if (!uid) { app.innerHTML = mustSignInHTML(); return; }
 
-      const prices = await getPrices();
-      const px = Number(prices["SAM/USDT"] || 0);
+  const prices = await getPrices();
+  const px = Number(prices["SAM/USDT"] || 0);
 
-      app.innerHTML = `
-        <section class="card" style="margin-top:70px;display:grid;gap:12px">
-          <h2 style="margin:0">Trade SAM</h2>
-          <div class="small" style="opacity:.85">Price (SAM/USDT): <b>${fmt(px,6)}</b></div>
+  app.innerHTML = `
+    <section class="card" style="margin-top:70px;display:grid;gap:12px">
+      <h2 style="margin:0">Trade SAM</h2>
+      <div class="small" style="opacity:.85">Price (SAM/USDT): <b>${fmt(px,6)}</b></div>
 
-          <div style="display:flex;gap:8px;align-items:center">
-            <input id="qtySam" class="auth-input" type="number" min="0" step="0.0001" placeholder="Qty SAM" style="flex:1">
-            <button id="btnBuy"  class="btn">Buy SAM</button>
-            <button id="btnSell" class="btn">Sell SAM</button>
-          </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="qtySam" class="auth-input" type="number" min="0" step="0.0001" placeholder="Qty SAM" style="flex:1">
+        <button id="btnBuy"  class="btn">Buy SAM</button>
+        <button id="btnSell" class="btn">Sell SAM</button>
+      </div>
 
-          <div class="small" id="tradeMsg" style="min-height:18px;color:#9fb4ff"></div>
+      <div class="small" id="tradeMsg" style="min-height:18px;color:#9fb4ff"></div>
+      <div id="balBox" class="small" style="opacity:.9"></div>
+    </section>
+  `;
 
-          <div id="balBox" class="small" style="opacity:.9"></div>
-        </section>
-      `;
-
-      async function refreshBalancesBox() {
-        const b = await getBalances();
-        const sam = Number((b.balances||[]).find(x=>x.asset==='SAM')?.balance || 0);
-        const usdt = Number((b.balances||[]).find(x=>x.asset==='USDT')?.balance || 0);
-        document.getElementById('balBox').innerHTML = `
-          Balances — SAM: <b>${fmt(sam,6)}</b> | USDT: <b>${fmt(usdt,6)}</b>
-        `;
-      }
-      await refreshBalancesBox();
-
-      const qtyInput = document.getElementById('qtySam');
-      const msg = document.getElementById('tradeMsg');
-      const doOrder = async (side) => {
-  const q = Number(qtyInput.value);
-  if (!q || q <= 0) { msg.textContent = "Enter a positive quantity."; return; }
-
-  msg.textContent = `Placing ${side.toLowerCase()} ${fmt(q,4)} SAM…`;
-  try {
-    const res = await placeOrder(side, q);             // { ok, px, side, qty, ... }
-    if (!res.ok) {
-      msg.textContent = "Order failed: " + (res.error || "");
-      return;
-    }
-    const cost = Number(res.qty) * Number(res.px);
-    msg.textContent = `Filled ${res.side.toUpperCase()} ${fmt(res.qty,4)} SAM @ ${fmt(res.px,6)} (USDT ${fmt(cost,4)})`;
-    qtyInput.value = "";
-    await refreshBalancesBox();                        // or use res.balances to update inline
-  } catch (e) {
-    console.error(e);
-    msg.textContent = "Network error.";
+  async function refreshBalancesBox() {
+    const b = await getBalances();
+    const sam  = Number((b.balances||[]).find(x=>x.asset==='SAM')?.balance || 0);
+    const usdt = Number((b.balances||[]).find(x=>x.asset==='USDT')?.balance || 0);
+    document.getElementById('balBox').innerHTML = `
+      Balances — SAM: <b>${fmt(sam,6)}</b> | USDT: <b>${fmt(usdt,6)}</b>
+    `;
   }
-};
+  await refreshBalancesBox();
 
+  const qtyInput = document.getElementById('qtySam');
+  const msg = document.getElementById('tradeMsg');
 
-      document.getElementById('btnBuy').onclick  = () => doOrder('BUY');
-      document.getElementById('btnSell').onclick = () => doOrder('SELL');
+  const doOrder = async (side) => {
+    const q = Number(qtyInput.value);
+    if (!q || q <= 0) { msg.textContent = "Enter a positive quantity."; return; }
+
+    msg.textContent = `Placing ${side.toLowerCase()} ${fmt(q,4)} SAM…`;
+    try {
+      const res = await placeOrder(side, q);
+      if (!res.ok) {
+        msg.textContent = "Order failed: " + (res.error || "");
+        return;
+      }
+      const cost = Number(res.qty) * Number(res.px);
+      msg.textContent = `Filled ${res.side.toUpperCase()} ${fmt(res.qty,4)} SAM @ ${fmt(res.px,6)} (USDT ${fmt(cost,4)})`;
+      qtyInput.value = "";
+      await refreshBalancesBox();
+    } catch (e) {
+      console.error(e);
+      msg.textContent = "Network error.";
     }
+  };
 
-    function mustSignInHTML() {
-      return `
-        <section class="card" style="margin-top:70px">
-          <h2 style="margin:0 0 8px">Please sign in</h2>
-          <div class="small" style="opacity:.85">Use the top bar to log in, or open the Auth tab to create an account.</div>
-          <div style="margin-top:10px"><button class="btn" onclick="navTo('auth')">Open Auth</button></div>
-        </section>
-      `;
-    }
+  document.getElementById('btnBuy').onclick  = () => doOrder('BUY');
+  document.getElementById('btnSell').onclick = () => doOrder('SELL');
+}
 
-    function navTo(tabName) {
-      if (tabName === 'trade') renderTrade();
-      else if (tabName === 'assets') renderAssets();
-      else if (tabName === 'market') renderMarket();
-      else renderHome();
-    }
+function mustSignInHTML() {
+  return `
+    <section class="card" style="margin-top:70px">
+      <h2 style="margin:0 0 8px">Please sign in</h2>
+      <div class="small" style="opacity:.85">Use the top bar to log in, or open the Auth tab to create an account.</div>
+      <div style="margin-top:10px"><button class="btn" onclick="navTo('auth')">Open Auth</button></div>
+    </section>
+  `;
+}
+</script>
 
-    document.querySelector('[data-tab="home"]')  ?.addEventListener('click', () => navTo('home'));
-    document.querySelector('[data-tab="market"]')?.addEventListener('click', () => navTo('market'));
-    document.querySelector('[data-tab="trade"]') ?.addEventListener('click', () => navTo('trade'));
-    document.querySelector('[data-tab="assets"]')?.addEventListener('click', () => navTo('assets'));
+<!-- ✅ Now you can safely write HTML -->
+<div id="tabs">
+  <button class="tab active" data-tab="home">Home</button>
+  <button class="tab" data-tab="market">Market</button>
+  <button class="tab" data-tab="trade">Trade</button>
+  <button class="tab" data-tab="assets">Assets</button>
+  <button class="tab" data-tab="auth">Auth</button>
+</div>
 
-    // show home on first load
-    navTo('home');
-  </script>
-  <body>
-  <div id="tabs">
-    <!-- your bottom nav bar -->
-  </div>
-  <main id="view"></main> <!-- ✅ single view container -->
-</body>
+<main id="view"></main> <!-- ✅ single view container -->
 
-</body>
-</html>
+<script type="module" src="./js/router.js"></script>

@@ -1,7 +1,7 @@
 // js/router.js
 import { $, AUTH } from './core.js';
 
-import HomeView   from './views/home.js';    // default imports
+import HomeView   from './views/home.js';
 import MarketView from './views/market.js';
 import TradeView  from './views/trade.js';
 import AssetsView from './views/assets.js';
@@ -16,7 +16,7 @@ export const routes = {
 };
 
 export function mount(tab){
-  const app = document.getElementById('view'); 
+  const app = document.getElementById('view');  // ✅ now pointing to <main id="view">
   if (!app) return;
   app.innerHTML = '';
 
@@ -62,18 +62,19 @@ export function selectTab(name){
   });
   mount(name);
 }
+
 // ---- add to router.js ----
 function routeFromHash() {
   const name = (location.hash.replace(/^#\/?/, '') || 'home').split('?')[0];
-  // fall back to 'home' if unknown
   const valid = Object.prototype.hasOwnProperty.call(routes, name) ? name : 'home';
-  // keep tabs ui in sync (if you use it)
+
+  // keep tabs ui in sync
   document.querySelectorAll('#tabs .tab').forEach(btn => {
     btn.classList.toggle('active', btn.getAttribute('data-tab') === valid);
   });
+
   mount(valid);
 }
 
-// bootstrap hash routing once, globally
 window.addEventListener('hashchange', routeFromHash);
 window.addEventListener('load', routeFromHash);
