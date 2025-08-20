@@ -6,19 +6,19 @@
   node_bundler = "esbuild"
   external_node_modules = ["pg"]
 
-# 1. API routes -> serverless functions (must be first!)
+# 1. API routes -> serverless functions
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
-# 2. Don't redirect static assets (css, js, images, fonts)
+# 2. Let Netlify serve static files (css, js, images, fonts) without redirect
 [[redirects]]
   from = "/:file.:ext"
   to = "/:file.:ext"
   status = 200
 
-# 3. SPA routing (all other paths go to index.html)
+# 3. All other routes -> index.html (SPA)
 [[redirects]]
   from = "/*"
   to = "/index.html"
