@@ -12,13 +12,13 @@
   <!-- Hide Crisp’s default bubble; we use header button -->
   <style>#crisp-chatbox>div>a{display:none!important}</style>
 
-  <!-- ✨ Small UI helpers -->
+  <!-- Small UI helpers -->
   <style>
     .btn{padding:6px 10px;border:1px solid #29304b;background:#1a223a;color:#e8eefc;border-radius:10px;cursor:pointer}
     .btn:hover{filter:brightness(1.1)}
     .auth-input{padding:6px 8px;border-radius:8px;border:1px solid #2a334d;background:#12182a;color:#e8eefc}
     .pill[disabled], .btn[disabled]{opacity:.6;cursor:wait}
-    :root.signup-mode #app { display:none !important; } /* hide SPA view when drop-in sign-up visible */
+    :root.signup-mode #app{display:none !important;} /* hide SPA view when drop-in sign-up visible */
     .hide{display:none!important}
   </style>
 
@@ -36,7 +36,7 @@
     (function(){var d=document,s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.head.appendChild(s);})();
   </script>
 
-  <!-- App entry -->
+  <!-- App entry (handles routing + views) -->
   <script type="module" src="js/main.js"></script>
 </head>
 <body>
@@ -87,10 +87,10 @@
   <!-- Runtime banner (errors / notices) -->
   <div class="banner" id="banner" role="status" aria-live="polite"></div>
 
-  <!-- Main view outlet (router mounts views here) -->
+  <!-- Main view outlet (main.js mounts views here) -->
   <main id="app" class="container"></main>
 
-  <!-- Bottom tabbar (router selects tabs by data-tab) -->
+  <!-- Bottom tabbar (main.js listens to data-tab) -->
   <nav class="tabbar" id="tabs">
     <button class="tab active" data-tab="home" aria-label="Home">
       <svg viewBox="0 0 24 24"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
@@ -114,7 +114,7 @@
     </button>
   </nav>
 
-  <!-- === Sign-up (drop-in) =============================================== -->
+  <!-- === Sign-up overlay (only when Auth tab or ?signup=1) ================= -->
   <section id="signup" class="card"
            style="display:none;max-width:520px;margin:88px auto 28px;padding:18px 18px 16px;
                   border-radius:16px;background:#101522;box-shadow:0 10px 35px rgba(0,0,0,.35)">
@@ -123,26 +123,20 @@
     <form id="signupForm" style="display:grid;gap:12px">
       <div>
         <label class="small" for="su-username" style="display:block;margin:0 0 6px;color:#9fb4ff">Username</label>
-        <input id="su-username" name="username" placeholder="e.g. navatrader" required
-               autocomplete="username"
-               style="width:100%;padding:12px;border-radius:12px;border:1px solid #2c3650;
-                      background:#0e1320;color:#e7eeff;outline:none" />
+        <input id="su-username" name="username" placeholder="e.g. navatrader" required autocomplete="username"
+               style="width:100%;padding:12px;border-radius:12px;border:1px solid #2c3650;background:#0e1320;color:#e7eeff;outline:none" />
       </div>
 
       <div>
         <label class="small" for="su-email" style="display:block;margin:0 0 6px;color:#9fb4ff">Email</label>
-        <input id="su-email" name="email" type="email" placeholder="you@example.com" required
-               autocomplete="email"
-               style="width:100%;padding:12px;border-radius:12px;border:1px solid #2c3650;
-                      background:#0e1320;color:#e7eeff;outline:none" />
+        <input id="su-email" name="email" type="email" placeholder="you@example.com" required autocomplete="email"
+               style="width:100%;padding:12px;border-radius:12px;border:1px solid #2c3650;background:#0e1320;color:#e7eeff;outline:none" />
       </div>
 
       <div>
         <label class="small" for="su-pass" style="display:block;margin:0 0 6px;color:#9fb4ff">Password</label>
-        <input id="su-pass" name="password" type="password" placeholder="At least 8 characters" required minlength="8"
-               autocomplete="new-password"
-               style="width:100%;padding:12px;border-radius:12px;border:1px solid #2c3650;
-                      background:#0e1320;color:#e7eeff;outline:none" />
+        <input id="su-pass" name="password" type="password" placeholder="At least 8 characters" required minlength="8" autocomplete="new-password"
+               style="width:100%;padding:12px;border-radius:12px;border:1px solid #2c3650;background:#0e1320;color:#e7eeff;outline:none" />
       </div>
 
       <button type="submit" class="pill"
@@ -158,65 +152,14 @@
     </div>
   </section>
 
+  <!-- Overlay + auth-bar logic ONLY (no page rendering here) -->
   <script>
-    // --- helpers
+    // helpers
     const $ = (s)=>document.querySelector(s);
     const banner = $("#banner");
     const toast  = (msg)=>{ banner.textContent = msg || ""; if (msg) setTimeout(()=>banner.textContent="", 3500); };
 
-    function getQueryParam(key){ return new URL(location.href).searchParams.get(key); }
-
-    // === Drop-in Sign-up
-    (function attachSignupUI(){
-      const signup = $('#signup');
-      const form   = $('#signupForm');
-      const msg    = $('#signupMsg');
-      if(!signup || !form) return;
-
-      const shouldOpen = getQueryParam('signup') === '1' || location.hash === '#signup';
-      if (shouldOpen) signup.style.display = 'block';
-
-      window.openSignup = function(){ signup.style.display = 'block'; scrollTo({top:0,behavior:'smooth'}); };
-
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const btn = form.querySelector('button[type=submit]');
-        const username = ($('#su-username').value || '').trim();
-        const email    = ($('#su-email').value || '').trim();
-        const password = ($('#su-pass').value || '');
-
-        if (!username || !email || !password){ msg.textContent = 'Please enter username, email and password.'; return; }
-
-        btn.disabled = true; msg.textContent = 'Creating your account…';
-
-        try{
-          const resp = await fetch('/api/signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email, password })
-          });
-          const data = await resp.json().catch(()=>({}));
-
-          if (resp.ok && data.ok){
-            msg.textContent = `Welcome, ${data.user.username}!`;
-            // hand-off: prefill header email & focus password field
-            const he = $('#auth-email'), hp = $('#auth-pass');
-            if (he) he.value = email;
-            if (hp) { hp.focus(); }
-            form.reset();
-          }else{
-            msg.textContent = data.error || 'Could not create account.';
-          }
-        }catch(err){
-          console.error(err);
-          msg.textContent = 'Network error. Please try again.';
-        }finally{
-          btn.disabled = false;
-        }
-      });
-    })();
-
-    // === Auth wiring (save token, call profile, sign out)
+    // Auth token helper used by signup handoff
     const Auth = {
       save(t){ localStorage.setItem("jwt", t); },
       token(){ return localStorage.getItem("jwt") || ""; },
@@ -231,6 +174,7 @@
       return res.json();
     }
 
+    // header auth bar wiring
     const statusEl = $("#auth-status");
     const emailEl  = $("#auth-email");
     const passEl   = $("#auth-pass");
@@ -258,13 +202,8 @@
       btnOut.classList.add("hide");
     }
 
-    // submit on Enter from the auth bar
     authbar?.addEventListener('submit', async (e)=>{
       e.preventDefault();
-      await signIn();
-    });
-
-    async function signIn(){
       const email = (emailEl.value || "").trim();
       const password = (passEl.value || "");
       if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast("Enter a valid email."); return; }
@@ -279,236 +218,84 @@
       localStorage.setItem('me', JSON.stringify(r.user));
       uiSignedIn(r.user);
       toast("Signed in");
-    }
-    async function me(){
+    });
+    btnMe?.addEventListener("click", async ()=>{
       const r = await api("/api/profile");
       if(!r.ok){ toast("Please sign in"); return; }
       alert(`ID: ${r.user.id}\nUser: ${r.user.username}\nEmail: ${r.user.email}`);
-    }
-    function signOut(){ Auth.clear(); localStorage.removeItem('me'); uiSignedOut(); toast("Signed out"); }
+    });
+    btnOut?.addEventListener("click", ()=>{ Auth.clear(); localStorage.removeItem('me'); uiSignedOut(); toast("Signed out"); });
 
-    btnIn?.addEventListener("click", (e)=>{ e.preventDefault(); signIn(); });
-    btnMe?.addEventListener("click", me);
-    btnOut?.addEventListener("click", signOut);
+    // sign-up overlay open/close rules
+    (function attachSignupUI(){
+      const signup = $('#signup');
+      const form   = $('#signupForm');
+      const msg    = $('#signupMsg');
+      if(!signup || !form) return;
 
-    // ✅ OPTION A: Auth tab opens drop-in and hides legacy SPA.
-    (function authTabWiring(){
-      const root = document.documentElement;
-
-      if (new URL(location.href).searchParams.get('signup') === '1') {
-        root.classList.add('signup-mode');
-        window.openSignup && window.openSignup();
+      const url = new URL(location.href);
+      if (url.searchParams.get('signup') === '1' || location.hash === '#signup') {
+        document.documentElement.classList.add('signup-mode');
+        signup.style.display = 'block';
       }
 
-      const authTab = document.querySelector('[data-tab="auth"]');
-      authTab?.addEventListener('click', (e) => {
-        root.classList.add('signup-mode');
-        window.openSignup && window.openSignup();
-        e.stopPropagation();
+      // clicking Auth tab opens overlay; other tabs close it
+      document.querySelector('[data-tab="auth"]')?.addEventListener('click', ()=>{
+        document.documentElement.classList.add('signup-mode');
+        signup.style.display = 'block';
+        scrollTo({top:0,behavior:'smooth'});
+      });
+      document.querySelectorAll('#tabs .tab').forEach(btn=>{
+        if(btn.dataset.tab !== 'auth'){
+          btn.addEventListener('click', ()=>{
+            document.documentElement.classList.remove('signup-mode');
+            signup.style.display = 'none';
+          });
+        }
       });
 
-      document.querySelectorAll('.tabbar .tab').forEach(btn => {
-        if (btn.dataset.tab !== 'auth') {
-          btn.addEventListener('click', () => {
-            root.classList.remove('signup-mode');
+      form.addEventListener('submit', async (e)=>{
+        e.preventDefault();
+        const btn = form.querySelector('button[type=submit]');
+        const username = ($('#su-username').value || '').trim();
+        const email    = ($('#su-email').value || '').trim();
+        const password = ($('#su-pass').value || '');
+        if (!username || !email || !password){ msg.textContent = 'Please enter username, email and password.'; return; }
+
+        btn.disabled = true; msg.textContent = 'Creating your account…';
+        try{
+          const resp = await fetch('/api/signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password })
           });
+          const data = await resp.json().catch(()=>({}));
+          if (resp.ok && data.ok){
+            msg.textContent = `Welcome, ${data.user.username}!`;
+            const he = $('#auth-email'), hp = $('#auth-pass');
+            if (he) he.value = email;
+            if (hp) hp.focus();
+            form.reset();
+          }else{
+            msg.textContent = data.error || 'Could not create account.';
+          }
+        }catch(err){
+          console.error(err);
+          msg.textContent = 'Network error. Please try again.';
+        }finally{
+          btn.disabled = false;
         }
       });
     })();
 
     // restore session on load
     (async ()=>{
-      if(!Auth.token()) return uiSignedOut();
-      const r = await api("/api/profile");
-      if(r.ok) uiSignedIn(r.user); else uiSignedOut();
+      try{
+        if(!Auth.token()) return uiSignedOut();
+        const r = await api("/api/profile");
+        if(r.ok) uiSignedIn(r.user); else uiSignedOut();
+      }catch{ uiSignedOut(); }
     })();
-
-    // ---------------------------------------------------------------------
-    // STEP 3: Trade / Market / Assets wiring (drop-in block)
-    // ---------------------------------------------------------------------
-
-    // router helpers
-    const app = document.getElementById('app');
-    const tabs = document.querySelectorAll('.tabbar .tab');
-
-    function meId() {
-      try { return (JSON.parse(localStorage.getItem('me')||'{}').id) || 0; }
-      catch { return 0; }
-    }
-    function fmt(n, d=4) {
-      const x = typeof n === "string" ? Number(n) : n;
-      return (isNaN(x) ? 0 : x).toLocaleString(undefined, { minimumFractionDigits:d, maximumFractionDigits:d });
-    }
-
-    // lightweight API callers
-    async function getPrices() {
-      const r = await fetch('/api/prices_get');
-      return r.ok ? r.json() : {};
-    }
-    async function getBalances() {
-  // server reads the user from your JWT; no query string needed
-  const data = await api('/api/balances');   // api() already injects Authorization
-  return data.ok ? data : { ok:false, balances:[] };
-}
-
- // Replace the old placeOrder() with this:
-async function placeOrder(side, qty) {
-  const body = {
-    side: String(side).toLowerCase(),   // 'buy' | 'sell'
-    asset: 'SAM',
-    quote: 'USDT',
-    qty: Number(qty)
-  };
-  // uses your api() helper, which already adds content-type + Auth.header()
-  return api('/api/orders_place', { method: 'POST', body: JSON.stringify(body) });
-}
-
-
-    function setActive(tabName) {
-      tabs.forEach(b => b.classList.toggle('active', b.dataset.tab === tabName));
-    }
-
-
-    async function renderHome() {
-      setActive('home');
-      const prices = await getPrices();
-      const px = Number(prices["SAM/USDT"] || 0);
-      app.innerHTML = `
-        <section class="card" style="margin-top:70px">
-          <h2 style="margin:0 0 8px">Welcome to Nova</h2>
-          <div class="small" style="opacity:.85">Live admin price: <b>SAM/USDT</b> = <b>${fmt(px,4)}</b></div>
-          <div style="margin-top:12px">
-            <button class="btn" onclick="navTo('trade')">Go to Trade</button>
-            <button class="btn" onclick="navTo('assets')">View Assets</button>
-            <button class="btn" onclick="navTo('market')">Go to Market</button>
-
-          </div>
-        </section>
-      `;
-    }
-
-    async function renderMarket() {
-  setActive('market');
-  const prices = await getPrices();
-  const samPrice = Number(prices["SAM/USDT"]) || 0; // convert safely
-
-  app.innerHTML = `
-    <section class="card" style="margin-top:70px">
-      <h2 style="margin:0 0 8px">Market Overview</h2>
-      <div class="small">Admin-set prices</div>
-      <div style="margin-top:10px">
-        <div class="row" style="display:flex;gap:12px;align-items:center">
-          <div style="width:120px">SAM / USDT</div>
-          <div><b>${fmt(samPrice, 6)}</b></div>
-        </div>
-      </div>
-    </section>
-  `;
-}
-
-
-    async function renderAssets() {
-  setActive('assets');
-  if (!Auth.token()) { app.innerHTML = mustSignInHTML(); return; } // ⬅️ changed
-  const data = await getBalances();                                  // ⬅️ no uid
-  const rows = (data.balances||[]).map(r => `
-    <tr><td>${r.asset}</td><td style="text-align:right">${fmt(r.balance, 6)}</td></tr>
-  `).join('') || `<tr><td colspan="2" style="opacity:.7">No balances yet</td></tr>`;
-  app.innerHTML = `
-    <section class="card" style="margin-top:70px">
-      <h2 style="margin:0 0 8px">Your Assets</h2>
-      <table style="width:100%;border-collapse:collapse;margin-top:8px">
-        <thead><tr><th style="text-align:left">Asset</th><th style="text-align:right">Balance</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </section>
-  `;
-}
-
-
-    
-async function renderTrade() {
-  setActive('trade');
-  const uid = meId();
-  if (!uid) { app.innerHTML = mustSignInHTML(); return; }
-
-  const prices = await getPrices();
-  const px = Number(prices["SAM/USDT"] || 0);
-
-  app.innerHTML = `
-    <section class="card" style="margin-top:70px;display:grid;gap:12px">
-      <h2 style="margin:0">Trade SAM</h2>
-      <div class="small" style="opacity:.85">Price (SAM/USDT): <b>${fmt(px,6)}</b></div>
-
-      <div style="display:flex;gap:8px;align-items:center">
-        <input id="qtySam" class="auth-input" type="number" min="0" step="0.0001" placeholder="Qty SAM" style="flex:1">
-        <button id="btnBuy"  class="btn">Buy SAM</button>
-        <button id="btnSell" class="btn">Sell SAM</button>
-      </div>
-
-      <div class="small" id="tradeMsg" style="min-height:18px;color:#9fb4ff"></div>
-      <div id="balBox" class="small" style="opacity:.9"></div>
-    </section>
-  `;
-
-  async function refreshBalancesBox() {
-    const b = await getBalances();
-    const sam  = Number((b.balances||[]).find(x=>x.asset==='SAM')?.balance || 0);
-    const usdt = Number((b.balances||[]).find(x=>x.asset==='USDT')?.balance || 0);
-    document.getElementById('balBox').innerHTML = `
-      Balances — SAM: <b>${fmt(sam,6)}</b> | USDT: <b>${fmt(usdt,6)}</b>
-    `;
-  }
-  await refreshBalancesBox();
-
-  const qtyInput = document.getElementById('qtySam');
-  const msg = document.getElementById('tradeMsg');
-
-  const doOrder = async (side) => {
-    const q = Number(qtyInput.value);
-    if (!q || q <= 0) { msg.textContent = "Enter a positive quantity."; return; }
-
-    msg.textContent = `Placing ${side.toLowerCase()} ${fmt(q,4)} SAM…`;
-    try {
-      const res = await placeOrder(side, q);
-      if (!res.ok) {
-        msg.textContent = "Order failed: " + (res.error || "");
-        return;
-      }
-      const cost = Number(res.qty) * Number(res.px);
-      msg.textContent = `Filled ${res.side.toUpperCase()} ${fmt(res.qty,4)} SAM @ ${fmt(res.px,6)} (USDT ${fmt(cost,4)})`;
-      qtyInput.value = "";
-      await refreshBalancesBox();
-    } catch (e) {
-      console.error(e);
-      msg.textContent = "Network error.";
-    }
-  };
-
-  document.getElementById('btnBuy').onclick  = () => doOrder('BUY');
-  document.getElementById('btnSell').onclick = () => doOrder('SELL');
-}
-
-function mustSignInHTML() {
-  return `
-    <section class="card" style="margin-top:70px">
-      <h2 style="margin:0 0 8px">Please sign in</h2>
-      <div class="small" style="opacity:.85">Use the top bar to log in, or open the Auth tab to create an account.</div>
-      <div style="margin-top:10px"><button class="btn" onclick="navTo('auth')">Open Auth</button></div>
-    </section>
-  `;
-}
-</script>
-
-<!-- ✅ Now you can safely write HTML -->
-<div id="tabs">
-  <button class="tab active" data-tab="home">Home</button>
-  <button class="tab" data-tab="market">Market</button>
-  <button class="tab" data-tab="trade">Trade</button>
-  <button class="tab" data-tab="assets">Assets</button>
-  <button class="tab" data-tab="auth">Auth</button>
-</div>
-
-<main id="view"></main> <!-- ✅ single view container -->
-
-<script type="module" src="./js/router.js"></script>
+  </script>
+</body>
+</html>
