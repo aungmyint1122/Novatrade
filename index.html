@@ -12,14 +12,15 @@
   <!-- Hide Crisp’s default bubble; we use header button -->
   <style>#crisp-chatbox>div>a{display:none!important}</style>
 
-  <!-- Small UI helpers -->
+  <!-- Small helpers -->
   <style>
     .btn{padding:6px 10px;border:1px solid #29304b;background:#1a223a;color:#e8eefc;border-radius:10px;cursor:pointer}
     .btn:hover{filter:brightness(1.1)}
     .auth-input{padding:6px 8px;border-radius:8px;border:1px solid #2a334d;background:#12182a;color:#e8eefc}
     .pill[disabled], .btn[disabled]{opacity:.6;cursor:wait}
-    :root.signup-mode #app{display:none !important;} /* hide SPA view when drop-in sign-up visible */
     .hide{display:none!important}
+    /* When signup overlay is open, hide SPA view */
+    :root.signup-mode #app{display:none !important;}
   </style>
 
   <!-- Crisp Chat -->
@@ -35,9 +36,6 @@
     };
     (function(){var d=document,s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.head.appendChild(s);})();
   </script>
-
-  <!-- App entry (handles routing + views) -->
-  <script type="module" src="js/main.js"></script>
 </head>
 <body>
   <!-- Top navigation (glass) -->
@@ -65,13 +63,13 @@
         </ul>
       </div>
 
-      <!-- Chat toggle (handled in main.js) -->
-      <button id="btn-chat" type="button" class="pill small" aria-label="Live chat" data-i18n="chat">Chat</button>
+      <!-- Chat toggle (no-op placeholder) -->
+      <button id="btn-chat" type="button" class="pill small" aria-label="Live chat">Chat</button>
 
       <!-- Session indicator -->
-      <div class="badge" id="who" data-i18n="guest">Guest</div>
+      <div class="badge" id="who">Guest</div>
 
-      <!-- === Auth Bar (with password) === -->
+      <!-- Auth Bar -->
       <form id="authbar" style="display:flex;gap:.5rem;align-items:center;margin-left:.75rem">
         <span id="auth-status" class="small" style="opacity:.85">Guest</span>
         <input id="auth-email" class="auth-input" type="email" placeholder="you@example.com" autocomplete="email" aria-label="Email" />
@@ -80,41 +78,40 @@
         <button id="btn-me"      type="button" class="btn hide">Me</button>
         <button id="btn-signout" type="button" class="btn hide">Sign Out</button>
       </form>
-      <!-- === /Auth Bar === -->
     </div>
   </header>
 
   <!-- Runtime banner (errors / notices) -->
   <div class="banner" id="banner" role="status" aria-live="polite"></div>
 
-  <!-- Main view outlet (main.js mounts views here) -->
+  <!-- Main view outlet -->
   <main id="app" class="container"></main>
 
-  <!-- Bottom tabbar (main.js listens to data-tab) -->
+  <!-- Bottom tabbar -->
   <nav class="tabbar" id="tabs">
     <button class="tab active" data-tab="home" aria-label="Home">
       <svg viewBox="0 0 24 24"><path d="M3 10.5L12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>
-      <span data-i18n="nav.home">Home</span>
+      <span>Home</span>
     </button>
     <button class="tab" data-tab="market" aria-label="Market">
       <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M8 19V9"/><path d="M12 19V4"/><path d="M16 19v-7"/><path d="M20 19v-3"/></svg>
-      <span data-i18n="nav.market">Market</span>
+      <span>Market</span>
     </button>
     <button class="tab" data-tab="trade" aria-label="Trade">
       <svg viewBox="0 0 24 24"><path d="M7 7h11l-3-3"/><path d="M17 17H6l3 3"/></svg>
-      <span data-i18n="nav.trade">Trade</span>
+      <span>Trade</span>
     </button>
     <button class="tab" data-tab="assets" aria-label="Assets">
       <svg viewBox="0 0 24 24"><path d="M3 7h18v10H3z"/><path d="M16 12h4"/></svg>
-      <span data-i18n="nav.assets">Assets</span>
+      <span>Assets</span>
     </button>
     <button class="tab" data-tab="auth" aria-label="Auth">
       <svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Z"/><path d="M3 21a9 9 0 0 1 18 0"/></svg>
-      <span data-i18n="nav.auth">Auth</span>
+      <span>Auth</span>
     </button>
   </nav>
 
-  <!-- === Sign-up overlay (only when Auth tab or ?signup=1) ================= -->
+  <!-- Sign-up overlay (appears only on Auth or ?signup=1) -->
   <section id="signup" class="card"
            style="display:none;max-width:520px;margin:88px auto 28px;padding:18px 18px 16px;
                   border-radius:16px;background:#101522;box-shadow:0 10px 35px rgba(0,0,0,.35)">
@@ -152,14 +149,19 @@
     </div>
   </section>
 
-  <!-- Overlay + auth-bar logic ONLY (no page rendering here) -->
+  <!-- ===================== Logic: auth + mini router ===================== -->
   <script>
-    // helpers
+    // ---------- tiny helpers ----------
     const $ = (s)=>document.querySelector(s);
     const banner = $("#banner");
     const toast  = (msg)=>{ banner.textContent = msg || ""; if (msg) setTimeout(()=>banner.textContent="", 3500); };
+    const app  = document.getElementById('app');
+    const tabs = document.querySelectorAll('#tabs .tab');
 
-    // Auth token helper used by signup handoff
+    function setActive(tabName){ tabs.forEach(b => b.classList.toggle('active', b.dataset.tab === tabName)); }
+    function fmt(n, d=4){ const x = typeof n==="string" ? Number(n) : n; return (isNaN(x)?0:x).toLocaleString(undefined,{minimumFractionDigits:d,maximumFractionDigits:d}); }
+
+    // ---------- auth ----------
     const Auth = {
       save(t){ localStorage.setItem("jwt", t); },
       token(){ return localStorage.getItem("jwt") || ""; },
@@ -167,39 +169,26 @@
       clear(){ localStorage.removeItem("jwt"); }
     };
     async function api(url, opts={}) {
-      const res = await fetch(url, {
-        ...opts,
-        headers: { "content-type": "application/json", ...(opts.headers||{}), ...Auth.header() }
-      });
+      const res = await fetch(url, { ...opts, headers: { "content-type":"application/json", ...(opts.headers||{}), ...Auth.header() } });
       return res.json();
     }
 
-    // header auth bar wiring
-    const statusEl = $("#auth-status");
-    const emailEl  = $("#auth-email");
-    const passEl   = $("#auth-pass");
-    const btnIn    = $("#btn-signin");
-    const btnMe    = $("#btn-me");
-    const btnOut   = $("#btn-signout");
-    const authbar  = $("#authbar");
+    const statusEl = $("#auth-status"), emailEl = $("#auth-email"), passEl = $("#auth-pass");
+    const btnIn = $("#btn-signin"), btnMe = $("#btn-me"), btnOut = $("#btn-signout"), authbar = $("#authbar");
 
     function uiSignedIn(user){
+      $("#who").textContent = user?.email || "Me";
       statusEl.textContent = user ? `Signed in as ${user.email}` : "Signed in";
-      emailEl.classList.add("hide");
-      passEl.classList.add("hide");
-      btnIn.classList.add("hide");
-      btnMe.classList.remove("hide");
-      btnOut.classList.remove("hide");
-      const signup = $('#signup'); if (signup) signup.style.display = 'none';
+      emailEl.classList.add("hide"); passEl.classList.add("hide"); btnIn.classList.add("hide");
+      btnMe.classList.remove("hide"); btnOut.classList.remove("hide");
       document.documentElement.classList.remove('signup-mode');
+      const su = $('#signup'); if (su) su.style.display = 'none';
     }
     function uiSignedOut(){
+      $("#who").textContent = "Guest";
       statusEl.textContent = "Guest";
-      emailEl.classList.remove("hide");
-      passEl.classList.remove("hide");
-      btnIn.classList.remove("hide");
-      btnMe.classList.add("hide");
-      btnOut.classList.add("hide");
+      emailEl.classList.remove("hide"); passEl.classList.remove("hide"); btnIn.classList.remove("hide");
+      btnMe.classList.add("hide"); btnOut.classList.add("hide");
     }
 
     authbar?.addEventListener('submit', async (e)=>{
@@ -208,11 +197,9 @@
       const password = (passEl.value || "");
       if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast("Enter a valid email."); return; }
       if(!password){ toast("Enter your password."); return; }
-
       btnIn.disabled = true;
       const r = await api("/api/login", { method:"POST", body: JSON.stringify({ email, password }) });
       btnIn.disabled = false;
-
       if(!r.ok){ toast("Login failed: " + (r.error||"")); return; }
       Auth.save(r.token);
       localStorage.setItem('me', JSON.stringify(r.user));
@@ -226,11 +213,9 @@
     });
     btnOut?.addEventListener("click", ()=>{ Auth.clear(); localStorage.removeItem('me'); uiSignedOut(); toast("Signed out"); });
 
-    // sign-up overlay open/close rules
+    // ---------- signup overlay ----------
     (function attachSignupUI(){
-      const signup = $('#signup');
-      const form   = $('#signupForm');
-      const msg    = $('#signupMsg');
+      const signup = $('#signup'), form = $('#signupForm'), msg = $('#signupMsg');
       if(!signup || !form) return;
 
       const url = new URL(location.href);
@@ -238,8 +223,6 @@
         document.documentElement.classList.add('signup-mode');
         signup.style.display = 'block';
       }
-
-      // clicking Auth tab opens overlay; other tabs close it
       document.querySelector('[data-tab="auth"]')?.addEventListener('click', ()=>{
         document.documentElement.classList.add('signup-mode');
         signup.style.display = 'block';
@@ -261,32 +244,147 @@
         const email    = ($('#su-email').value || '').trim();
         const password = ($('#su-pass').value || '');
         if (!username || !email || !password){ msg.textContent = 'Please enter username, email and password.'; return; }
-
         btn.disabled = true; msg.textContent = 'Creating your account…';
         try{
-          const resp = await fetch('/api/signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, email, password })
-          });
+          const resp = await fetch('/api/signup', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ username, email, password }) });
           const data = await resp.json().catch(()=>({}));
           if (resp.ok && data.ok){
             msg.textContent = `Welcome, ${data.user.username}!`;
-            const he = $('#auth-email'), hp = $('#auth-pass');
-            if (he) he.value = email;
-            if (hp) hp.focus();
+            const he = $('#auth-email'), hp = $('#auth-pass'); if (he) he.value = email; if (hp) hp.focus();
             form.reset();
-          }else{
-            msg.textContent = data.error || 'Could not create account.';
-          }
-        }catch(err){
-          console.error(err);
-          msg.textContent = 'Network error. Please try again.';
-        }finally{
-          btn.disabled = false;
-        }
+          }else{ msg.textContent = data.error || 'Could not create account.'; }
+        }catch(err){ console.error(err); msg.textContent = 'Network error. Please try again.'; }
+        finally{ btn.disabled = false; }
       });
     })();
+
+    // ---------- tiny API helpers for views ----------
+    async function getPrices(){ const r = await fetch('/api/prices_get'); return r.ok ? r.json() : {}; }
+    async function getBalances(){ const d = await api('/api/balances'); return d.ok ? d : { ok:false, balances:[] }; }
+    async function placeOrder(side, qty){
+      const body = { side:String(side).toLowerCase(), asset:'SAM', quote:'USDT', qty:Number(qty) };
+      return api('/api/orders_place', { method:'POST', body: JSON.stringify(body) });
+    }
+
+    // ---------- views ----------
+    async function renderHome(){
+      setActive('home');
+      const prices = await getPrices(); const px = Number(prices['SAM/USDT'] || 0);
+      app.innerHTML = `
+        <section class="card" style="margin-top:70px">
+          <h2 style="margin:0 0 8px">Welcome to Nova</h2>
+          <div class="small" style="opacity:.85">Live admin price: <b>SAM/USDT</b> = <b>${fmt(px,4)}</b></div>
+          <div style="margin-top:12px">
+            <button class="btn" onclick="navTo('trade')">Go to Trade</button>
+            <button class="btn" onclick="navTo('assets')">View Assets</button>
+            <button class="btn" onclick="navTo('market')">Go to Market</button>
+          </div>
+        </section>
+      `;
+    }
+
+    async function renderMarket(){
+      setActive('market');
+      const p = await getPrices(); const sam = Number(p['SAM/USDT'] || 0);
+      app.innerHTML = `
+        <section class="card" style="margin-top:70px">
+          <h2 style="margin:0 0 8px">Market Overview</h2>
+          <div class="small">Admin-set prices</div>
+          <div style="margin-top:10px;display:flex;gap:12px;align-items:center">
+            <div style="width:120px">SAM / USDT</div><div><b>${fmt(sam,6)}</b></div>
+          </div>
+        </section>
+      `;
+    }
+
+    function mustSignInHTML(){
+      return `
+        <section class="card" style="margin-top:70px">
+          <h2 style="margin:0 0 8px">Please sign in</h2>
+          <div class="small" style="opacity:.85">Use the top bar to log in, or open the Auth tab to create an account.</div>
+          <div style="margin-top:10px"><button class="btn" onclick="document.querySelector('[data-tab=auth]').click()">Open Auth</button></div>
+        </section>
+      `;
+    }
+
+    async function renderAssets(){
+      setActive('assets');
+      if (!Auth.token()) { app.innerHTML = mustSignInHTML(); return; }
+      const data = await getBalances();
+      const rows = (data.balances||[]).map(r => `<tr><td>${r.asset}</td><td style="text-align:right">${fmt(r.balance,6)}</td></tr>`).join('')
+        || `<tr><td colspan="2" style="opacity:.7">No balances yet</td></tr>`;
+      app.innerHTML = `
+        <section class="card" style="margin-top:70px">
+          <h2 style="margin:0 0 8px">Your Assets</h2>
+          <table style="width:100%;border-collapse:collapse;margin-top:8px">
+            <thead><tr><th style="text-align:left">Asset</th><th style="text-align:right">Balance</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </section>
+      `;
+    }
+
+    async function renderTrade(){
+      setActive('trade');
+      if (!Auth.token()) { app.innerHTML = mustSignInHTML(); return; }
+      const prices = await getPrices(); const px = Number(prices['SAM/USDT'] || 0);
+
+      app.innerHTML = `
+        <section class="card" style="margin-top:70px;display:grid;gap:12px">
+          <h2 style="margin:0">Trade SAM</h2>
+          <div class="small" style="opacity:.85">Price (SAM/USDT): <b>${fmt(px,6)}</b></div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="qtySam" class="auth-input" type="number" min="0" step="0.0001" placeholder="Qty SAM" style="flex:1">
+            <button id="btnBuy"  class="btn">Buy SAM</button>
+            <button id="btnSell" class="btn">Sell SAM</button>
+          </div>
+          <div class="small" id="tradeMsg" style="min-height:18px;color:#9fb4ff"></div>
+          <div id="balBox" class="small" style="opacity:.9"></div>
+        </section>
+      `;
+
+      async function refreshBalancesBox(){
+        const b = await getBalances();
+        const sam  = Number((b.balances||[]).find(x=>x.asset==='SAM')?.balance || 0);
+        const usdt = Number((b.balances||[]).find(x=>x.asset==='USDT')?.balance || 0);
+        $('#balBox').innerHTML = `Balances — SAM: <b>${fmt(sam,6)}</b> | USDT: <b>${fmt(usdt,6)}</b>`;
+      }
+      await refreshBalancesBox();
+
+      const qtyInput = $('#qtySam'), msg = $('#tradeMsg');
+      const doOrder = async (side)=>{
+        const q = Number(qtyInput.value);
+        if (!q || q <= 0) { msg.textContent = "Enter a positive quantity."; return; }
+        msg.textContent = `Placing ${side.toLowerCase()} ${fmt(q,4)} SAM…`;
+        try{
+          const res = await placeOrder(side, q);
+          if (!res.ok){ msg.textContent = "Order failed: " + (res.error || ""); return; }
+          const cost = Number(res.qty) * Number(res.px);
+          msg.textContent = `Filled ${res.side.toUpperCase()} ${fmt(res.qty,4)} SAM @ ${fmt(res.px,6)} (USDT ${fmt(cost,4)})`;
+          qtyInput.value = "";
+          await refreshBalancesBox();
+        }catch(e){ console.error(e); msg.textContent = "Network error."; }
+      };
+      $('#btnBuy').onclick  = () => doOrder('BUY');
+      $('#btnSell').onclick = () => doOrder('SELL');
+    }
+
+    // ---------- tab wiring ----------
+    function navTo(tab){
+      if (tab==='home') renderHome();
+      else if (tab==='market') renderMarket();
+      else if (tab==='trade') renderTrade();
+      else if (tab==='assets') renderAssets();
+    }
+    document.querySelector('[data-tab="home"]')  ?.addEventListener('click', ()=>navTo('home'));
+    document.querySelector('[data-tab="market"]')?.addEventListener('click', ()=>navTo('market'));
+    document.querySelector('[data-tab="trade"]') ?.addEventListener('click', ()=>navTo('trade'));
+    document.querySelector('[data-tab="assets"]')?.addEventListener('click', ()=>navTo('assets'));
+    document.querySelector('[data-tab="auth"]')  ?.addEventListener('click', ()=>{
+      document.documentElement.classList.add('signup-mode');
+      const su = document.getElementById('signup'); su.style.display='block';
+      scrollTo({top:0,behavior:'smooth'});
+    });
 
     // restore session on load
     (async ()=>{
@@ -296,6 +394,9 @@
         if(r.ok) uiSignedIn(r.user); else uiSignedOut();
       }catch{ uiSignedOut(); }
     })();
+
+    // first paint
+    navTo('home');
   </script>
 </body>
 </html>
