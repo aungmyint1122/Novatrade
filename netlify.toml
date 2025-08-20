@@ -6,20 +6,21 @@
   node_bundler = "esbuild"
   external_node_modules = ["pg"]
 
-# 1. API routes -> serverless functions
+# redirect /api/* → serverless functions
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
-# 2. Let Netlify serve static files (css, js, images, fonts) without redirect
-[[redirects]]
-  from = "/:file.:ext"
-  to = "/:file.:ext"
-  status = 200
+# optional global headers (CORS + basic security)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
 
-# 3. All other routes -> index.html (SPA)
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+# scheduled function (auto daily price update)
+[[scheduled]]
+  cron = "0 0 * * *"
+  command = "prices_auto"
