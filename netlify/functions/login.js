@@ -1,8 +1,11 @@
-// netlify/functions/login.js
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");   // make sure bcryptjs is in dependencies
 const { Pool } = require("pg");
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }   // Neon requires SSL
+});
 
 exports.handler = async (event) => {
   try {
@@ -25,7 +28,9 @@ exports.handler = async (event) => {
 
     const user = result.rows[0];
 
-    if (user.password !== password) {
+    // compare hashed password
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) {
       return { statusCode: 401, body: JSON.stringify({ error: "Invalid password" }) };
     }
 
@@ -36,7 +41,7 @@ exports.handler = async (event) => {
         email: user.email,
         is_admin: user.is_admin,
       },
-      process.env.JWT_SECRET,
+      process.env.JWT_SECRET || "dev_secret",
       { expiresIn: "7d" }
     );
 
@@ -45,7 +50,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ ok: true, token, user }),
     };
   } catch (err) {
-    console.error(err);
+    console.error("Login error:", err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };
