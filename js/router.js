@@ -16,7 +16,7 @@ export const routes = {
 };
 
 export function mount(tab){
-  const app = $('#app');
+  const app = document.getElementById('view'); 
   if (!app) return;
   app.innerHTML = '';
 
