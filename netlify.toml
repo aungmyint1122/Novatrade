@@ -1,4 +1,5 @@
 [build]
+  # no build step since you're serving raw HTML/JS/CSS
   publish = "."
   functions = "netlify/functions"
 
@@ -6,13 +7,19 @@
   node_bundler = "esbuild"
   external_node_modules = ["pg"]
 
-# redirect /api/* → serverless functions
+# API routes -> serverless functions
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
 
-# optional global headers (CORS + basic security)
+# SPA routing: always serve index.html for non-file routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# optional security headers
 [[headers]]
   for = "/*"
   [headers.values]
@@ -20,7 +27,7 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
 
-# scheduled function (auto daily price update)
+# scheduled function (daily price update)
 [[scheduled]]
   cron = "0 0 * * *"
   command = "prices_auto"
