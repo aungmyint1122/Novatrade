@@ -35,11 +35,6 @@ export default function HomeView(cb){
   `;
   wrap.appendChild(hero);
 
-  function goAuth(mode){
-    try { sessionStorage.setItem('authMode', mode); } catch {}
-    nav('auth');
-  }
-
   let lastMode = null;
   let lastEst  = '';
   let lastTick = 0;
@@ -98,8 +93,9 @@ export default function HomeView(cb){
             <button id="ctaStart"  type="button" class="btn">Get started</button>
             <button id="ctaSignin" type="button" class="btn ghost">I already have an account</button>
           `;
-          row.querySelector('#ctaStart').onclick  = () => goAuth('create');
-          row.querySelector('#ctaSignin').onclick = () => goAuth('login');
+          // 🚀 Direct hash navigation with mode
+          row.querySelector('#ctaStart').onclick  = () => { location.hash = "#/auth?mode=create"; };
+          row.querySelector('#ctaSignin').onclick = () => { location.hash = "#/auth?mode=login"; };
         }
       }
       lastMode = mode;
